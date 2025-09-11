@@ -8,7 +8,8 @@ plugins {
 android {
     namespace = "com.example.chemiq"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+//    ndkVersion = flutter.ndkVersion
+    ndkVersion = "29.0.14033849" // 설치된 최신 버전
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -17,6 +18,7 @@ android {
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_11.toString()
+//        jvmTarget = "11"
     }
 
     defaultConfig {
