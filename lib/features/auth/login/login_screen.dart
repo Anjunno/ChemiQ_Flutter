@@ -18,16 +18,10 @@ class LoginScreen extends ConsumerWidget {
 
     // 로그인 상태 변화(성공/실패)에 따른 부가 효과(스낵바, 화면이동)를 처리합니다.
     ref.listen(loginViewModelProvider, (previous, next) {
-      // 에러가 발생했을 경우
       if (next.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.error!)),
         );
-      }
-      // 로그인이 성공했을 경우
-      if (next.loginSuccess) {
-        // GoRouter를 사용하여 홈 화면으로 이동합니다.
-        context.go('/home');
       }
     });
 
@@ -73,6 +67,13 @@ class LoginScreen extends ConsumerWidget {
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
               )
                   : const Text('로그인'), // 평상시 텍스트
+            ),
+            TextButton(
+              onPressed: () {
+                print('회원가입버튼 누름');
+                context.push('/signup'); // 회원가입 화면으로 이동
+              },
+              child: const Text('아직 회원이 아니신가요? 가입하기'),
             ),
           ],
         ),

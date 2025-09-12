@@ -1,24 +1,24 @@
+import 'package:chemiq/data/repositories/auth_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:chemiq/core/di/service_locator.dart';
 
-// 인증 상태를 나타내는 Enum
 enum AuthState {
-  unknown, // 확인되지 않음 (앱 시작 초기 상태)
-  unauthenticated, // 로그아웃됨
-  authenticated, // 로그인됨
+  unknown,
+  unauthenticated,
+  authenticated,
 }
 
-// 인증 상태를 관리하는 Notifier
 class AuthStateNotifier extends StateNotifier<AuthState> {
   final FlutterSecureStorage _storage;
+  final AuthRepository _authRepository;
 
-  AuthStateNotifier(this._storage) : super(AuthState.unknown) {
+  AuthStateNotifier(this._storage, this._authRepository) : super(AuthState.unknown) {
     checkAuthStatus();
   }
 
-  // 앱 시작 시 토큰 유무를 확인하여 초기 상태 결정
   Future<void> checkAuthStatus() async {
+    await Future.delayed(const Duration(milliseconds: 200));
     final token = await _storage.read(key: 'accessToken');
     if (token != null) {
       state = AuthState.authenticated;
@@ -27,17 +27,30 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // 로그아웃 처리
   Future<void> logout() async {
-    await _storage.deleteAll(); // 모든 토큰 삭제
-    state = AuthState.unauthenticated; // 상태를 로그아웃으로 변경
-    print('모든 토큰 삭제 및 로그아웃 처리 완료.');
+    await _authRepository.logout();
+    await _storage.deleteAll();
+    state = AuthState.unauthenticated;
+    print('클라이언트/서버 로그아웃이 모두 완료되었습니다.');
+  }
+
+  Future<void> test() async {
+    await _authRepository.test();
   }
 }
 
-// AuthStateNotifier를 제공하는 Provider
+
+
+/// (✨ 오류가 발생한 바로 이 부분입니다)
 final authStateProvider =
 StateNotifierProvider<AuthStateNotifier, AuthState>((ref) {
-  // get_it을 통해 FlutterSecureStorage 인스턴스를 가져옴
-  return AuthStateNotifier(serviceLocator<FlutterSecureStorage>());
+  // 재료 1: FlutterSecureStorage
+  final storage = serviceLocator<FlutterSecureStorage>();
+
+  // 재료 2: AuthRepository
+  final authRepository = ref.watch(authRepositoryProvider);
+
+  // 이제 두 재료를 모두 넣어서 AuthStateNotifier를 만듭니다.
+  return AuthStateNotifier(storage, authRepository);
 });
+

@@ -4,6 +4,9 @@ import 'package:chemiq/core/dio/dio_client.dart';
 import 'package:chemiq/data/models/login_response.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/member_signup_request.dart';
+import '../models/rogout_request.dart';
+
 class AuthRepository {
   final DioClient _dioClient;
 
@@ -56,6 +59,79 @@ class AuthRepository {
     }
   }
 
+  /// 로그아웃 API 호출 메서드
+  Future<void> logout() async {
+    try {
+      // 1. 기기에 저장된 Refresh Token을 읽어옵니다.
+      final refreshToken = await _dioClient.storage.read(key: 'refreshToken');
+
+      // 2. 토큰이 없으면 서버에 요청할 필요가 없으므로 함수를 즉시 종료합니다.
+      if (refreshToken == null) {
+        print('저장된 Refresh Token이 없어 서버에 로그아웃 요청을 보내지 않습니다.');
+        return;
+      }
+
+      // 3. 서버에 보낼 요청 데이터를 만듭니다.
+      final requestDto = LogoutRequest(refreshToken: refreshToken);
+
+      // 4. '/logout' 경로로 POST 요청을 보냅니다.
+      await _dioClient.dio.post('/logout', data: requestDto.toJson());
+      print('서버 DB의 Refresh Token 무효화 성공');
+
+    } catch (e) {
+      // 5. 서버 로그아웃 요청에 실패하더라도, 클라이언트의 로그아웃 흐름은 계속되어야 합니다.
+      // 따라서 에러를 다시 던지지(rethrow) 않고 콘솔에 로그만 남깁니다.
+      print('서버 로그아웃 요청 실패: $e');
+    }
+  }
+
+
+  Future<void> test() async {
+    try {
+      // 4. '/logout' 경로로 POST 요청을 보냅니다.
+      await _dioClient.dio.get('/members/me/info');
+      print('아직 요청가능');
+
+    } catch (e) {
+      // 5. 서버 로그아웃 요청에 실패하더라도, 클라이언트의 로그아웃 흐름은 계속되어야 합니다.
+      // 따라서 에러를 다시 던지지(rethrow) 않고 콘솔에 로그만 남깁니다.
+      print('이게 무슨 문제?: $e');
+    }
+  }
+
+  /// (✨ 추가된 부분) 회원가입 API 호출
+  Future<void> signUp({
+    required String memberId,
+    required String password,
+    required String nickname,
+  }) async {
+    try {
+      // 1. API 명세에 맞춰 요청 DTO를 생성합니다.
+      final requestDto = MemberSignUpRequest(
+        memberId: memberId,
+        password: password,
+        nickname: nickname,
+      );
+
+      // 2. '/signup' 경로로 POST 요청을 보냅니다.
+      //    이번에는 JSON 형식으로 데이터를 보냅니다 (toJson() 호출).
+      await _dioClient.dio.post('/signup', data: requestDto.toJson());
+      print('회원가입 성공');
+
+    } on DioException catch (e) {
+      // Dio 에러 처리
+      if (e.response?.statusCode == 409) {
+        // 409 Conflict 에러는 아이디 중복을 의미합니다.
+        throw Exception('이미 사용 중인 아이디입니다.');
+      }
+      // 그 외 다른 에러
+      throw Exception('회원가입에 실패했습니다: ${e.message}');
+    } catch (e) {
+      // 알 수 없는 에러
+      print('알 수 없는 에러 발생: $e');
+      rethrow;
+    }
+  }
 // TODO: 여기에 나중에 회원가입, 로그아웃 등의 API 호출 메서드를 추가합니다.
 }
 

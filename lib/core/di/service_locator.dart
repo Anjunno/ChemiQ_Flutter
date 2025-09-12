@@ -35,8 +35,10 @@ void setupServiceLocator() {
   // 4. Provider 등록 (추가)
   // 이 부분은 AuthStateNotifier가 다른 서비스에 의존하지 않으므로 직접 등록합니다.
   // Riverpod Provider는 UI 레이어에서 주로 사용되므로, 여기서는 인스턴스만 등록합니다.
-  serviceLocator.registerLazySingleton<AuthStateNotifier>(
-          () => AuthStateNotifier(serviceLocator<FlutterSecureStorage>()));
+  serviceLocator.registerLazySingleton<AuthStateNotifier>(() => AuthStateNotifier(
+    serviceLocator<FlutterSecureStorage>(),
+    serviceLocator<AuthRepository>(), // AuthRepository 의존성 추가
+  ));
 
   // 3. Repository 등록 (향후 추가될 부분)
   // 예: serviceLocator.registerLazySingleton<AuthRepository>(() => AuthRepository(dioClient: serviceLocator<DioClient>()));
