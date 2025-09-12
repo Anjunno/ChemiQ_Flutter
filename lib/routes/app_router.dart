@@ -7,8 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/edit_profile/edit_profile_screen.dart';
 import '../features/evaluation/evaluation_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/mission_detail/mission_detail_screen.dart';
 import '../features/mission_submission/mission_submission_screen.dart';
 import '../features/mypage/mypage_screen.dart';
 import '../features/partner_linking/partner_linking_screen.dart';
@@ -67,6 +69,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/signup', builder: (context, state) => const SignUpScreen()),
+      GoRoute(path: '/edit_profile', builder: (context, state) => const EditProfileScreen()),
       GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
       GoRoute(path: '/mypage', builder: (context, state) => const MyPageScreen()),
       GoRoute(path: '/timeline', builder: (context, state) => const TimelineScreen()),
@@ -97,6 +100,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             submissionId: submissionId,
             partnerSubmission: partnerSubmission,
           );
+        },
+      ),
+
+      GoRoute(
+        path: '/mission_detail',
+        builder: (context, state) {
+          // extra를 통해 SubmissionDetailDto 객체를 직접 전달받습니다.
+          final submission = state.extra as SubmissionDetailDto;
+          return MissionDetailScreen(submission: submission);
         },
       ),
     ],

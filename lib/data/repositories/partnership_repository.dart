@@ -85,6 +85,18 @@ class PartnershipRepository {
   Future<void> cancelRequest(int partnershipId) async {
     await _dioClient.dio.delete('/partnerships/requests/$partnershipId/cancel');
   }
+
+  /// 현재 파트너 관계를 해제합니다.
+  Future<void> deletePartnership() async {
+    try {
+      await _dioClient.dio.delete('/partnerships');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 409) {
+        throw '해제할 파트너 관계가 존재하지 않아요.';
+      }
+      throw '관계 해제에 실패했어요. 다시 시도해주세요.';
+    }
+  }
 }
 
 // PartnershipRepository의 인스턴스를 제공하는 Provider

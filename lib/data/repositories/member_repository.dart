@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/PresignedUrl_response.dart';
 import '../models/myPage_response.dart';
+import '../models/nickname_change_request.dart';
+import '../models/password_change_request.dart';
 import '../models/presignedUrl_request.dart';
 import '../models/profileImage_update_request.dart';
 
@@ -59,7 +61,47 @@ class MemberRepository {
       data: requestDto.toJson(),
     );
   }
+  /// 닉네임 변경을 요청합니다.
+  Future<void> changeNickname({required String nickname}) async {
+    try {
+      final requestDto = NicknameChangeRequest(nickname: nickname);
+      await _dioClient.dio.patch(
+        '/members/me/nickname',
+        data: requestDto.toJson(),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 400) {
+        throw '닉네임 규칙(2~6자)을 확인해주세요.';
+      }
+      throw '닉네임 변경에 실패했어요.';
+    }
+  }
 
+  /// 비밀번호 변경을 요청합니다.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final requestDto = PasswordChangeRequest(
+        password: currentPassword,
+        newPassword: newPassword,
+      );
+      await _dioClient.dio.patch(
+        '/members/me/password',
+        data: requestDto.toJson(),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 400) {
+        final message = e.response?.data['message'] ?? '요청이 잘못되었습니다.';
+        if (message.contains('현재 비밀번호')) {
+          throw '현재 비밀번호가 일치하지 않아요.';
+        }
+        throw '새 비밀번호 규칙을 확인해주세요.';
+      }
+      throw '비밀번호 변경에 실패했어요.';
+    }
+  }
 // TODO: 여기에 닉네임 변경, 비밀번호 변경, 프로필 사진 업로드 등의 메서드를 추가합니다.
 
 }

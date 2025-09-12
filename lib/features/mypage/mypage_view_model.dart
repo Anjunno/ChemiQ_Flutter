@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/models/myPage_response.dart';
+import '../../data/repositories/partnership_repository.dart';
+import '../auth/provider/partner_state_provider.dart';
 
 // 마이페이지의 상태
 class MyPageState {
@@ -38,8 +40,13 @@ class MyPageState {
 class MyPageViewModel extends StateNotifier<MyPageState> {
   final MemberRepository _memberRepository;
   final ImagePicker _picker = ImagePicker();
+  final PartnershipRepository _partnershipRepository; // PartnershipRepository 추가
+  final Ref _ref; // 다른 Provider를 제어하기 위한 Ref 추가
 
-  MyPageViewModel(this._memberRepository) : super(MyPageState());
+
+  // 생성자에서 PartnershipRepository와 Ref를 주입받도록 수정
+  MyPageViewModel(this._memberRepository, this._partnershipRepository, this._ref)
+      : super(MyPageState());
 
   /// 마이페이지 정보 불러오기 (기존 코드)
   Future<void> fetchMyPageInfo() async {
@@ -83,12 +90,25 @@ class MyPageViewModel extends StateNotifier<MyPageState> {
       state = state.copyWith(isUploadingImage: false);
     }
   }
+  /// 파트너 관계를 해제합니다.
+  Future<void> breakUp() async {
+    try {
+      await _partnershipRepository.deletePartnership();
+      // ★★★ 중요: 전역 파트너 상태를 무효화하여 갱신합니다.
+      // 이 코드로 인해 GoRouter가 변경을 감지하고 파트너 연결 화면으로 리다이렉트합니다.
+      _ref.invalidate(partnerStateProvider);
+    } catch (e) {
+      // 에러가 발생하면 UI에서 스낵바 등으로 표시할 수 있도록 다시 던집니다.
+      rethrow;
+    }
+  }
+
 }
 
 // Provider
 final myPageViewModelProvider =
 StateNotifierProvider.autoDispose<MyPageViewModel, MyPageState>((ref) {
   final memberRepository = ref.watch(memberRepositoryProvider);
-  return MyPageViewModel(memberRepository);
+  final partnershipRepository = ref.watch(partnershipRepositoryProvider);
+  return MyPageViewModel(memberRepository, partnershipRepository, ref);
 });
-

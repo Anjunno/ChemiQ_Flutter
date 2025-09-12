@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../auth/provider/auth_state_provider.dart';
 import 'home_screen_view_model.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -33,14 +34,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.history_edu_outlined),
             onPressed: () {
-              context.go('/timeline');
+              context.push('/timeline');
             },
             tooltip: '타임라인 보기',
           ),
           IconButton(
             icon: const Icon(Icons.person_outline_rounded),
-            onPressed: () => context.go('/mypage'),
+            onPressed: () => context.push('/mypage'),
             tooltip: '마이페이지',
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              // 전역 AuthStateNotifier의 logout 메서드를 호출하여 안전하게 로그아웃 처리합니다.
+              ref.read(authStateProvider.notifier).logout();
+            },
+            tooltip: '로그아웃',
           ),
         ],
         // TODO: 나중에 마이페이지 등으로 가는 버튼을 여기에 추가할 수 있습니다.
@@ -96,7 +105,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           title: '나의 제출',
           submission: mission.mySubmission,
           onPressed: () {
-            context.go(
+            context.push(
               '/mission_submission/${mission.dailyMissionId}',
               extra: mission.missionTitle,
             );
@@ -131,7 +140,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ? () {
         // 평가 화면으로 이동합니다.
         // 경로에 제출물 ID를 포함하고, extra를 통해 제출물 전체 데이터를 전달합니다.
-        context.go(
+        context.push(
           '/evaluation/${submission.submissionId}',
           extra: submission,
         );

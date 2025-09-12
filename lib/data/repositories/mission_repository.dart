@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:typed_data';
 import '../models/PresignedUrl_response.dart';
 import '../models/dailyMission_response.dart';
-import '../models/evaluationr_equest.dart';
+import '../models/evaluation_detail_dto.dart';
+import '../models/evaluation_request.dart';
 import '../models/presignedUrl_request.dart';
 import '../models/submission_create_request.dart';
 
@@ -122,6 +123,23 @@ class MissionRepository {
     } catch (e) {
       print('타임라인 조회 실패: $e');
       throw '과거 기록을 불러오는 데 실패했어요.';
+    }
+  }
+
+  /// 특정 제출물에 대한 파트너의 평가 정보를 조회합니다.
+  /// 평가가 있으면 EvaluationDetailDto 객체를, 없으면(404) null을 반환합니다.
+  Future<EvaluationDetailDto?> getEvaluationForSubmission(int submissionId) async {
+    try {
+      // 백엔드 API 경로에 맞춰 수정
+      final response = await _dioClient.dio.get('/submissions/$submissionId/evaluation');
+      return EvaluationDetailDto.fromJson(response.data);
+    } on DioException catch (e) {
+      // API 명세에 따라, 평가가 아직 없으면 404 에러가 발생합니다.
+      if (e.response?.statusCode == 404) {
+        return null; // 평가가 없는 것은 정상 상황이므로 null 반환
+      }
+      print('평가 정보 조회 실패: $e');
+      throw '평가 정보를 불러오는 데 실패했어요.';
     }
   }
 }

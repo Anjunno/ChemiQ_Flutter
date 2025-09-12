@@ -2,6 +2,7 @@ import 'package:chemiq/data/models/member_info_dto.dart';
 import 'package:chemiq/data/models/partnership_info_dto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'mypage_view_model.dart';
 
@@ -131,6 +132,7 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                 alignment: Alignment.centerRight,
                 child: TextButton(onPressed: () {
                   // TODO: 닉네임, 비밀번호 변경 화면으로 이동
+                  context.go('/edit_profile');
                   print('정보 수정');
                 }, child: const Text('정보 수정')),
               ),
@@ -140,6 +142,7 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
     );
   }
 
+  // ✨ _buildPartnershipCard 메서드만 아래와 같이 수정합니다.
   Widget _buildPartnershipCard(PartnershipInfoDto info, TextTheme textTheme) {
     return Card(
       elevation: 4,
@@ -162,6 +165,47 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                 _buildInfoItem('🔥', '스트릭', '${info.streakCount}일'),
                 _buildInfoItem('🧪', '케미 지수', info.chemiScore.toStringAsFixed(1)),
               ],
+            ),
+            const SizedBox(height: 20),
+            // ✨ 관계 해제 버튼 및 다이얼로그 로직 추가
+            TextButton.icon(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext dialogContext) {
+                    return AlertDialog(
+                      title: const Text('정말 관계를 해제하시겠어요?'),
+                      content: const Text('이 작업은 되돌릴 수 없으며, 연결이 즉시 끊어집니다.'),
+                      actions: [
+                        TextButton(
+                          child: const Text('취소'),
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                        ),
+                        TextButton(
+                          child: const Text('해제하기', style: TextStyle(color: Colors.red)),
+                          onPressed: () async {
+                            Navigator.of(dialogContext).pop(); // 다이얼로그 먼저 닫기
+                            try {
+                              // ViewModel의 breakUp 메서드 호출
+                              await ref.read(myPageViewModelProvider.notifier).breakUp();
+                              // 성공 시 자동으로 파트너 연결 화면으로 이동합니다.
+                            } catch (e) {
+                              // 실패 시 스낵바로 에러 메시지 표시
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.toString())),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              icon: Icon(Icons.heart_broken_outlined, color: Colors.red.shade300),
+              label: Text('관계 해제하기', style: TextStyle(color: Colors.red.shade400)),
             ),
           ],
         ),

@@ -2,6 +2,7 @@
 import 'package:chemiq/data/models/submission_detail_dto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/dailyMission_response.dart';
 import 'timeline_view_model.dart';
@@ -108,13 +109,19 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           const Divider(height: 24),
 
           if (mission.mySubmission != null)
-            _buildSubmissionPreview('나의 기록', mission.mySubmission!, context),
+            InkWell(
+              onTap: () => context.go('/mission_detail', extra: mission.mySubmission!),
+              child: _buildSubmissionPreview('나의 기록', mission.mySubmission!, context),
+            ),
 
           if (mission.mySubmission != null && mission.partnerSubmission != null)
             const SizedBox(height: 16),
 
           if (mission.partnerSubmission != null)
-            _buildSubmissionPreview('파트너의 기록', mission.partnerSubmission!, context),
+            InkWell(
+              onTap: () => context.go('/mission_detail', extra: mission.partnerSubmission!),
+              child: _buildSubmissionPreview('파트너의 기록', mission.partnerSubmission!, context),
+            ),
 
           if (mission.mySubmission == null && mission.partnerSubmission == null)
             const Center(child: Text('이 날은 미션을 제출하지 않았어요.', style: TextStyle(color: Colors.grey))),
