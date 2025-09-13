@@ -9,6 +9,7 @@ import '../models/evaluation_detail_dto.dart';
 import '../models/evaluation_request.dart';
 import '../models/presignedUrl_request.dart';
 import '../models/submission_create_request.dart';
+import '../models/timeline_item_dto.dart';
 
 class MissionRepository {
   final DioClient _dioClient;
@@ -105,21 +106,16 @@ class MissionRepository {
   ///과거 미션 기록을 페이징하여 조회합니다.
   Future<List<DailyMissionResponse>> getTimeline({
     required int page,
-    int size = 10, // 한 번에 10개의 기록을 불러옵니다.
+    int size = 10,
   }) async {
     try {
       final response = await _dioClient.dio.get(
         '/timeline',
-        queryParameters: {
-          'page': page,
-          'size': size,
-        },
+        queryParameters: {'page': page, 'size': size},
       );
-      print(response);
       final List<dynamic> content = response.data['content'];
-      return content
-          .map((item) => DailyMissionResponse.fromJson(item))
-          .toList();
+      // ✨ 반환 타입을 DailyMissionResponse로 변경합니다.
+      return content.map((item) => DailyMissionResponse.fromJson(item)).toList();
     } catch (e) {
       print('타임라인 조회 실패: $e');
       throw '과거 기록을 불러오는 데 실패했어요.';

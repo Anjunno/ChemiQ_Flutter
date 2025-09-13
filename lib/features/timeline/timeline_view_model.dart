@@ -4,13 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/dailyMission_response.dart';
 
+// ✨ 상태 클래스가 DailyMissionResponse를 사용하도록 수정합니다.
 class TimelineState {
-  final bool isLoading;         // 초기 로딩 여부
-  final bool isLoadingMore;     // 추가 로딩 여부
-  final String? error;          // 에러 메시지
-  final List<DailyMissionResponse> missions; // 불러온 미션 목록
-  final int page;               // 현재 페이지 번호
-  final bool canLoadMore;       // 더 불러올 페이지가 있는지 여부
+  final bool isLoading;
+  final bool isLoadingMore;
+  final String? error;
+  final List<DailyMissionResponse> missions;
+  final int page;
+  final bool canLoadMore;
 
   TimelineState({
     this.isLoading = true,
@@ -22,8 +23,12 @@ class TimelineState {
   });
 
   TimelineState copyWith({
-    bool? isLoading, bool? isLoadingMore, String? error,
-    List<DailyMissionResponse>? missions, int? page, bool? canLoadMore,
+    bool? isLoading,
+    bool? isLoadingMore,
+    String? error,
+    List<DailyMissionResponse>? missions,
+    int? page,
+    bool? canLoadMore,
   }) {
     return TimelineState(
       isLoading: isLoading ?? this.isLoading,
@@ -36,16 +41,17 @@ class TimelineState {
   }
 }
 
+// ViewModel
 class TimelineViewModel extends StateNotifier<TimelineState> {
   final MissionRepository _missionRepository;
 
   TimelineViewModel(this._missionRepository) : super(TimelineState()) {
-    fetchInitialTimeline(); // ViewModel이 생성되자마자 첫 페이지 로드
+    fetchInitialTimeline();
   }
 
-  /// 첫 페이지의 타임라인 데이터를 불러옵니다.
+  /// ✨ API 호출 결과 타입이 DailyMissionResponse 목록을 받도록 수정합니다.
   Future<void> fetchInitialTimeline() async {
-    state = state.copyWith(isLoading: true, page: 0, canLoadMore: true);
+    state = state.copyWith(isLoading: true, page: 0, canLoadMore: true, missions: []);
     try {
       final newMissions = await _missionRepository.getTimeline(page: 0);
       state = state.copyWith(isLoading: false, missions: newMissions, page: 1);
@@ -54,21 +60,17 @@ class TimelineViewModel extends StateNotifier<TimelineState> {
     }
   }
 
-  /// 다음 페이지의 타임라인 데이터를 불러와 기존 목록에 추가합니다.
   Future<void> loadMore() async {
-    // 이미 로딩 중이거나 더 이상 불러올 페이지가 없으면 실행하지 않음
     if (state.isLoadingMore || !state.canLoadMore) return;
-
     state = state.copyWith(isLoadingMore: true);
     try {
       final newMissions = await _missionRepository.getTimeline(page: state.page);
       if (newMissions.isEmpty) {
-        // 새로 불러온 목록이 비어있으면, 더 이상 페이지가 없는 것으로 간주
         state = state.copyWith(isLoadingMore: false, canLoadMore: false);
       } else {
         state = state.copyWith(
           isLoadingMore: false,
-          missions: [...state.missions, ...newMissions], // 기존 목록에 새 목록 추가
+          missions: [...state.missions, ...newMissions],
           page: state.page + 1,
         );
       }
@@ -78,8 +80,10 @@ class TimelineViewModel extends StateNotifier<TimelineState> {
   }
 }
 
+// Provider
 final timelineViewModelProvider =
-StateNotifierProvider<TimelineViewModel, TimelineState>((ref) {
+StateNotifierProvider.autoDispose<TimelineViewModel, TimelineState>((ref) {
   final missionRepository = ref.watch(missionRepositoryProvider);
   return TimelineViewModel(missionRepository);
 });
+

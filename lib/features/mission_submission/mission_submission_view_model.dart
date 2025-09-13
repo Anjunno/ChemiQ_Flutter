@@ -1,7 +1,8 @@
 import 'dart:typed_data';
-import 'package:chemiq/data/repositories/mission_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../../data/repositories/mission_repository.dart';
 
 // 미션 제출 과정의 상태를 나타내는 Enum
 enum SubmissionStatus {
@@ -16,22 +17,26 @@ class MissionSubmissionState {
   final SubmissionStatus status;
   final XFile? selectedImage; // 사용자가 선택한 이미지 파일
   final String? errorMessage;
+  final int contentLength; // ✨ 현재 글자 수를 관리하기 위한 상태 추가
 
   MissionSubmissionState({
     this.status = SubmissionStatus.idle,
     this.selectedImage,
     this.errorMessage,
+    this.contentLength = 0, // ✨ 초기값 0
   });
 
   MissionSubmissionState copyWith({
     SubmissionStatus? status,
     XFile? selectedImage,
     String? errorMessage,
+    int? contentLength, // ✨ copyWith에 추가
   }) {
     return MissionSubmissionState(
       status: status ?? this.status,
       selectedImage: selectedImage ?? this.selectedImage,
       errorMessage: errorMessage,
+      contentLength: contentLength ?? this.contentLength,
     );
   }
 }
@@ -46,7 +51,7 @@ class MissionSubmissionViewModel extends StateNotifier<MissionSubmissionState> {
   /// 갤러리에서 이미지 선택하기
   Future<void> pickImage() async {
     try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85); // 이미지 품질 조절
       if (image != null) {
         state = state.copyWith(selectedImage: image, status: SubmissionStatus.idle);
       }
@@ -64,41 +69,33 @@ class MissionSubmissionViewModel extends StateNotifier<MissionSubmissionState> {
       state = state.copyWith(status: SubmissionStatus.error, errorMessage: '사진을 선택해주세요.');
       return;
     }
-
     state = state.copyWith(status: SubmissionStatus.loading, errorMessage: null);
-
     try {
       final imageFile = state.selectedImage!;
       final imageData = await imageFile.readAsBytes();
-
-      // 1단계: Pre-signed URL 요청
-      print('1단계: Pre-signed URL 요청 중...');
       final presignedUrlResponse = await _missionRepository.getPresignedUrl(imageFile.name);
-
-      // (외부) S3에 이미지 업로드
-      print('S3에 이미지 업로드 중...');
       await _missionRepository.uploadImageToS3(presignedUrlResponse.presignedUrl, imageData);
-
-      // 2단계: 최종 제출 보고
-      print('2단계: 최종 제출 보고 중...');
       await _missionRepository.createSubmission(
         dailyMissionId: dailyMissionId,
         content: content,
         fileKey: presignedUrlResponse.fileKey,
       );
-
-      print('미션 제출 성공!');
       state = state.copyWith(status: SubmissionStatus.success);
     } catch (e) {
-      print('미션 제출 실패: $e');
       state = state.copyWith(status: SubmissionStatus.error, errorMessage: '제출에 실패했습니다. 잠시 후 다시 시도해주세요.');
     }
   }
+
+  // ✨ 글 내용이 변경될 때마다 글자 수를 업데이트하는 메서드
+  void onContentChanged(String content) {
+    state = state.copyWith(contentLength: content.length);
+  }
 }
 
-// ViewModel의 인스턴스를 UI에 제공하는 Provider
+// Provider
 final missionSubmissionViewModelProvider = StateNotifierProvider.autoDispose<
     MissionSubmissionViewModel, MissionSubmissionState>((ref) {
   final missionRepository = ref.watch(missionRepositoryProvider);
   return MissionSubmissionViewModel(missionRepository);
 });
+

@@ -1,78 +1,66 @@
 import 'package:chemiq/data/repositories/member_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// 정보 수정 화면의 상태 (로딩, 성공/실패 메시지)
+// 정보 수정 화면의 상태 (닉네임 변경에 집중)
 class EditProfileState {
   final bool isNicknameLoading;
-  final bool isPasswordLoading;
   final String? successMessage;
   final String? errorMessage;
+  // ✨ 닉네임 유효성 검사 결과 등을 추가할 수 있습니다.
+  final bool isNicknameValid;
 
   EditProfileState({
     this.isNicknameLoading = false,
-    this.isPasswordLoading = false,
     this.successMessage,
     this.errorMessage,
+    this.isNicknameValid = false,
   });
 
   EditProfileState copyWith({
     bool? isNicknameLoading,
-    bool? isPasswordLoading,
     String? successMessage,
     String? errorMessage,
+    bool? isNicknameValid,
   }) {
     return EditProfileState(
       isNicknameLoading: isNicknameLoading ?? this.isNicknameLoading,
-      isPasswordLoading: isPasswordLoading ?? this.isPasswordLoading,
       successMessage: successMessage,
       errorMessage: errorMessage,
+      isNicknameValid: isNicknameValid ?? this.isNicknameValid,
     );
   }
 }
 
-// 상태(EditProfileState)와 로직을 관리하는 ViewModel
+// ViewModel
 class EditProfileViewModel extends StateNotifier<EditProfileState> {
   final MemberRepository _memberRepository;
 
   EditProfileViewModel(this._memberRepository) : super(EditProfileState());
 
   /// 닉네임 변경 로직
-  Future<void> changeNickname(String newNickname) async {
+  Future<bool> changeNickname(String newNickname) async {
     state = state.copyWith(isNicknameLoading: true, successMessage: null, errorMessage: null);
     try {
       await _memberRepository.changeNickname(nickname: newNickname);
       state = state.copyWith(isNicknameLoading: false, successMessage: '닉네임이 성공적으로 변경되었어요.');
+      return true; // 성공 여부 반환
     } catch (e) {
       state = state.copyWith(isNicknameLoading: false, errorMessage: e.toString());
+      return false;
     }
   }
 
-  /// 비밀번호 변경 로직
-  Future<void> changePassword({
-    required String currentPassword,
-    required String newPassword,
-    required String confirmPassword,
-  }) async {
-    if (newPassword != confirmPassword) {
-      state = state.copyWith(errorMessage: '새 비밀번호가 일치하지 않아요.');
-      return;
-    }
-    state = state.copyWith(isPasswordLoading: true, successMessage: null, errorMessage: null);
-    try {
-      await _memberRepository.changePassword(
-        currentPassword: currentPassword,
-        newPassword: newPassword,
-      );
-      state = state.copyWith(isPasswordLoading: false, successMessage: '비밀번호가 성공적으로 변경되었어요.');
-    } catch (e) {
-      state = state.copyWith(isPasswordLoading: false, errorMessage: e.toString());
-    }
+  // ✨ 닉네임 유효성을 검사하는 로직 (예시)
+  void validateNickname(String nickname) {
+    final isValid = nickname.length >= 2 && nickname.length <= 10;
+    state = state.copyWith(isNicknameValid: isValid, errorMessage: null);
   }
 }
 
-// ViewModel의 인스턴스를 UI에 제공하는 Provider
+// Provider
 final editProfileViewModelProvider =
 StateNotifierProvider.autoDispose<EditProfileViewModel, EditProfileState>((ref) {
   final memberRepository = ref.watch(memberRepositoryProvider);
   return EditProfileViewModel(memberRepository);
 });
+

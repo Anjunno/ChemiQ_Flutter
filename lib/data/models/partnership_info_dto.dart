@@ -3,11 +3,15 @@ class PartnershipInfoDto {
   final int streakCount;
   final double chemiScore;
   final DateTime acceptedAt;
+  final int totalCompletedMissions;
+  final int weeklyCompletedMissions;
 
   PartnershipInfoDto({
     required this.streakCount,
     required this.chemiScore,
     required this.acceptedAt,
+    required this.totalCompletedMissions,
+    required this.weeklyCompletedMissions,
   });
 
   factory PartnershipInfoDto.fromJson(Map<String, dynamic> json) {
@@ -15,6 +19,8 @@ class PartnershipInfoDto {
       streakCount: json['streakCount'] as int,
       chemiScore: (json['chemiScore'] as num).toDouble(),
       acceptedAt: DateTime.parse(json['acceptedAt'] as String),
+      totalCompletedMissions: json['totalCompletedMissions'] as int,
+      weeklyCompletedMissions: json['weeklyCompletedMissions'] as int
     );
   }
 }

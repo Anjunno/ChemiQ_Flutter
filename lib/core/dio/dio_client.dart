@@ -1,7 +1,9 @@
 import 'package:chemiq/data/models/reissue_request.dart';
 import 'package:chemiq/data/models/reissue_response.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:chemiq/core/di/service_locator.dart';
 import 'package:chemiq/features/auth/provider/auth_state_provider.dart';
@@ -10,8 +12,9 @@ import 'package:chemiq/features/auth/provider/auth_state_provider.dart';
 class DioClient {
   final Dio dio;
   final FlutterSecureStorage storage;
+  final ProviderContainer _container;
 
-  DioClient({required this.dio, required this.storage}) {
+  DioClient({required this.dio, required this.storage, required ProviderContainer container,}) : _container = container {
     dio.options = BaseOptions(
       baseUrl: dotenv.env['SERVER_URL'] ?? 'http://localhost:8080', // .env 파일에서 서버 URL을 가져옵니다. 없으면 기본값 사용
       connectTimeout: const Duration(seconds: 5), // 서버 연결 시도 시간
@@ -24,23 +27,31 @@ class DioClient {
       QueuedInterceptorsWrapper(
         // --- 1. 요청을 보내기 전 ---
         onRequest: (options, handler) async {
-          // 로그인, 회원가입, 토큰 재발급 API는 토큰이 필요 없으므로 제외합니다.
+          // ✨ 수정된 부분: Riverpod Provider 대신, connectivity_plus의 함수를 직접 호출합니다.
+          // 이 방법은 현재 시점의 네트워크 상태를 가장 확실하게 가져올 수 있습니다.
+          final connectivityResultList = await Connectivity().checkConnectivity();
+          if (connectivityResultList.contains(ConnectivityResult.none)) {
+            print('인터넷 연결 없음 감지! 요청을 차단합니다.');
+            return handler.reject(
+              DioException(
+                requestOptions: options,
+                message: '인터넷 연결을 확인해주세요.',
+              ),
+            );
+          }
+
+          // ... 기존 토큰 추가 로직은 동일 ...
           if (!options.path.contains('/login') &&
               !options.path.contains('/signup') &&
               !options.path.contains('/reissue')) {
-            // 저장된 Access Token을 가져와서
             final accessToken = await storage.read(key: 'accessToken');
             if (accessToken != null) {
-              // 헤더에 'Authorization'으로 추가합니다.
               options.headers['Authorization'] = 'Bearer $accessToken';
             }
           }
-          // 준비된 요청을 다음 단계로 보냅니다.
           return handler.next(options);
         },
-        // --- 2. 성공적인 응답을 받았을 때 ---
         onResponse: (response, handler) {
-          // 개발 중 디버깅을 위해 성공 로그를 출력합니다.
           print('[RES] [${response.requestOptions.method}] ${response.requestOptions.uri}');
           return handler.next(response);
         },

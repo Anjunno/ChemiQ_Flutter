@@ -1,5 +1,3 @@
-// lib/styles/app_theme.dart
-
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
@@ -37,7 +35,7 @@ class AppTheme {
       headlineLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.text),
       bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal, color: AppColors.text),
       bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: AppColors.text),
-      labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white), // 버튼 등
+      labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -53,5 +51,25 @@ class AppTheme {
         padding: const EdgeInsets.symmetric(vertical: 16),
       ),
     ),
+    // 불필요한 labelStyle을 제거한 최종 TextField 테마
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+    ),
   );
 }
+

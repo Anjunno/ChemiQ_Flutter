@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // 미션 상세 화면의 상태를 관리하는 클래스
 class MissionDetailState {
-  final SubmissionDetailDto submission;      // 기본 제출 정보
+  final SubmissionDetailDto submission;      // 표시할 제출물 정보
   final bool isLoading;                      // 평가 정보 로딩 여부
-  final EvaluationDetailDto? evaluation;     // 불러온 파트너의 평가 (하나)
+  final EvaluationDetailDto? evaluation;     // 불러온 파트너의 평가
   final String? error;
 
   MissionDetailState({
@@ -25,7 +25,7 @@ class MissionDetailState {
     return MissionDetailState(
       submission: this.submission,
       isLoading: isLoading ?? this.isLoading,
-      evaluation: evaluation ?? this.evaluation,
+      evaluation: evaluation, // null로 초기화될 수 있도록 ?? 제거
       error: error,
     );
   }
@@ -54,10 +54,11 @@ class MissionDetailViewModel extends StateNotifier<MissionDetailState> {
   }
 }
 
-// Provider
-final missionDetailViewModelProvider = StateNotifierProvider.family<
-    MissionDetailViewModel, MissionDetailState, SubmissionDetailDto>((ref, submission) {
-  final missionRepository = ref.watch(missionRepositoryProvider);
-  return MissionDetailViewModel(missionRepository, submission);
-});
+// Provider (family를 사용하여 어떤 제출물에 대한 ViewModel인지 구분)
+final missionDetailViewModelProvider = StateNotifierProvider.family
+    .autoDispose<MissionDetailViewModel, MissionDetailState, SubmissionDetailDto>(
+        (ref, submission) {
+      final missionRepository = ref.watch(missionRepositoryProvider);
+      return MissionDetailViewModel(missionRepository, submission);
+    });
 

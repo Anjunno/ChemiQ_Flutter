@@ -1,6 +1,7 @@
 // lib/core/di/service_locator.dart
 import 'package:chemiq/core/dio/dio_client.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 
@@ -11,7 +12,7 @@ import '../../features/auth/provider/auth_state_provider.dart';
 final GetIt serviceLocator = GetIt.instance;
 
 // 앱 실행 시 필요한 의존성들을 등록하는 함수
-void setupServiceLocator() {
+void setupServiceLocator(ProviderContainer container) {
   // 1. 외부 라이브러리 등록
   // Dio
   serviceLocator.registerLazySingleton<Dio>(() => Dio());
@@ -24,6 +25,7 @@ void setupServiceLocator() {
         () => DioClient(
       dio: serviceLocator<Dio>(),
       storage: serviceLocator<FlutterSecureStorage>(),
+      container: container, // 전달
     ),
   );
 
