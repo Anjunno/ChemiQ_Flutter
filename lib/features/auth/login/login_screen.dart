@@ -15,6 +15,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   late final TextEditingController _memberIdController;
   late final TextEditingController _passwordController;
+  bool _isPasswordVisible = false;
 
   @override
   void initState() {
@@ -129,7 +130,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         TextField(
           controller: idController,
           decoration: const InputDecoration(
-            hintText: '이메일 또는 아이디',
+            hintText: '아이디',
           ),
         ),
         const SizedBox(height: 16),
@@ -137,10 +138,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         const SizedBox(height: 8),
         TextField(
           controller: pwController,
-          obscureText: true,
-          decoration: const InputDecoration(
+          obscureText: !_isPasswordVisible,
+          decoration: InputDecoration(
             hintText: '비밀번호',
+            suffixIcon: IconButton(
+              icon: Icon(
+                _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                color: Colors.grey,
+              ),
+              onPressed: () {
+                setState(() {
+                  _isPasswordVisible = !_isPasswordVisible;
+                });
+              },
+            ),
           ),
+
         ),
       ],
     );

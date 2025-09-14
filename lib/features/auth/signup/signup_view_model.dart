@@ -1,68 +1,142 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chemiq/data/repositories/auth_repository.dart';
 
-// 회원가입 화면의 상태를 정의하는 클래스
+// 비밀번호 규칙의 각 항목 상태
+class PasswordRequirement {
+  final String text;
+  final bool met;
+  const PasswordRequirement(this.text, this.met);
+}
+
+// 회원가입 화면의 모든 상태를 관리하는 클래스
 class SignUpState {
-  final bool isLoading;      // 로딩 중인지 여부
-  final String? error;       // 에러 메시지
-  final bool signUpSuccess;  // 회원가입 성공 여부
+  // 입력값
+  final String memberId;
+  final String password;
+  final String confirmPassword;
+  final String nickname;
+
+  // 유효성 검사 결과
+  final bool isIdValid;
+  final List<PasswordRequirement> passwordRequirements;
+  final bool isPasswordValid;
+  final bool doPasswordsMatch;
+  final bool isNicknameValid;
+
+  // API 요청 상태
+  final bool isLoading;
+  final bool signUpSuccess;
+  final String? errorMessage;
+
+  // 모든 조건이 충족되었는지 확인하는 getter
+  bool get isFormValid => isIdValid && isPasswordValid && doPasswordsMatch && isNicknameValid;
 
   SignUpState({
+    this.memberId = '',
+    this.password = '',
+    this.confirmPassword = '',
+    this.nickname = '',
+    this.isIdValid = false,
+    this.passwordRequirements = const [
+      PasswordRequirement("8~12자 입력", false),
+      PasswordRequirement("영문 포함", false),
+      PasswordRequirement("숫자 포함", false),
+      PasswordRequirement("특수문자 포함", false),
+    ],
+    this.isPasswordValid = false,
+    this.doPasswordsMatch = false,
+    this.isNicknameValid = false,
     this.isLoading = false,
-    this.error,
     this.signUpSuccess = false,
+    this.errorMessage,
   });
 
-  // 상태를 쉽게 복사하고 일부 값만 변경할 수 있게 해주는 copyWith 메서드
   SignUpState copyWith({
-    bool? isLoading,
-    String? error,
-    bool? signUpSuccess,
+    String? memberId, String? password, String? confirmPassword, String? nickname,
+    bool? isIdValid, List<PasswordRequirement>? passwordRequirements, bool? isPasswordValid,
+    bool? doPasswordsMatch, bool? isNicknameValid, bool? isLoading,
+    bool? signUpSuccess, String? errorMessage,
   }) {
     return SignUpState(
+      memberId: memberId ?? this.memberId,
+      password: password ?? this.password,
+      confirmPassword: confirmPassword ?? this.confirmPassword,
+      nickname: nickname ?? this.nickname,
+      isIdValid: isIdValid ?? this.isIdValid,
+      passwordRequirements: passwordRequirements ?? this.passwordRequirements,
+      isPasswordValid: isPasswordValid ?? this.isPasswordValid,
+      doPasswordsMatch: doPasswordsMatch ?? this.doPasswordsMatch,
+      isNicknameValid: isNicknameValid ?? this.isNicknameValid,
       isLoading: isLoading ?? this.isLoading,
-      error: error, // error는 null로 초기화될 수 있도록 ??를 사용하지 않음
       signUpSuccess: signUpSuccess ?? this.signUpSuccess,
+      errorMessage: errorMessage,
     );
   }
 }
 
-// 상태(SignUpState)와 비즈니스 로직을 관리하는 ViewModel
+// ViewModel
 class SignUpViewModel extends StateNotifier<SignUpState> {
   final AuthRepository _authRepository;
 
   SignUpViewModel(this._authRepository) : super(SignUpState());
 
-  Future<void> signUp({
-    required String memberId,
-    required String password,
-    required String nickname,
-  }) async {
-    // 이미 로딩 중이면 다시 요청하지 않도록 방어
-    if (state.isLoading) return;
+  // 아이디 유효성 검사
+  void validateId(String memberId) {
+    final isValid = memberId.length >= 5 && memberId.length <= 12 && !memberId.contains(' ');
+    state = state.copyWith(memberId: memberId, isIdValid: isValid);
+  }
 
-    // 로딩 상태 시작, 이전 에러 메시지는 초기화
-    state = state.copyWith(isLoading: true, error: null, signUpSuccess: false);
+  // 비밀번호 유효성 검사 (규칙 체크리스트)
+  void validatePassword(String password) {
+    final requirements = [
+      PasswordRequirement("8~12자 입력", password.length >= 8 && password.length <= 12),
+      PasswordRequirement("영문 포함", RegExp(r'[a-zA-Z]').hasMatch(password)),
+      PasswordRequirement("숫자 포함", RegExp(r'[0-9]').hasMatch(password)),
+      PasswordRequirement("특수문자 포함", RegExp(r'[\W_]').hasMatch(password)),
+    ];
+    final isPasswordValid = requirements.every((req) => req.met);
+    state = state.copyWith(
+      password: password,
+      passwordRequirements: requirements,
+      isPasswordValid: isPasswordValid,
+    );
+    // 비밀번호가 바뀌면, 확인 필드도 다시 검사
+    validateConfirmPassword(state.confirmPassword);
+  }
 
+  // 비밀번호 확인 유효성 검사
+  void validateConfirmPassword(String confirmPassword) {
+    final doPasswordsMatch = state.password.isNotEmpty && state.password == confirmPassword;
+    state = state.copyWith(confirmPassword: confirmPassword, doPasswordsMatch: doPasswordsMatch);
+  }
+
+  // 닉네임 유효성 검사
+  void validateNickname(String nickname) {
+    final isValid = nickname.length >= 2 && nickname.length <= 6 && !nickname.contains(' ');
+    state = state.copyWith(nickname: nickname, isNicknameValid: isValid);
+  }
+
+  // 최종 회원가입 요청
+  Future<void> signUp() async {
+    if (!state.isFormValid || state.isLoading) return;
+    state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      // Repository를 통해 실제 회원가입 API를 호출
       await _authRepository.signUp(
-        memberId: memberId,
-        password: password,
-        nickname: nickname,
+        memberId: state.memberId,
+        password: state.password,
+        nickname: state.nickname,
       );
-      // 성공 시, 성공 상태로 변경
       state = state.copyWith(isLoading: false, signUpSuccess: true);
     } catch (e) {
-      // 실패 시, 에러 상태로 변경하고 에러 메시지를 저장
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
 }
 
-// SignUpViewModel의 인스턴스를 UI에 제공하는 Provider
+// Provider
 final signUpViewModelProvider =
 StateNotifierProvider.autoDispose<SignUpViewModel, SignUpState>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
   return SignUpViewModel(authRepository);
 });
+
