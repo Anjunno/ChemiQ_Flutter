@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:chemiq/core/ui/chemiq_toast.dart';
 import 'package:chemiq/data/models/member_info_dto.dart';
 import 'package:chemiq/data/models/partnership_info_dto.dart';
 import 'package:chemiq/features/auth/provider/auth_state_provider.dart';
@@ -6,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../core/ui/chemiq_toast.dart';
 import '../../core/ui/widgets/showConfirmation_dialog.dart';
 import 'mypage_view_model.dart';
 
@@ -37,7 +37,7 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with AutomaticKeepA
 
     ref.listen(myPageViewModelProvider, (previous, next) {
       if (next.profileImageError != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(next.profileImageError!)));
+        showChemiQToast(next.profileImageError!, type: ToastType.error);
       }
     });
 
@@ -74,46 +74,26 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with AutomaticKeepA
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
       children: [
-        // 파트너가 있을 때만 프로필 헤더와 통계 카드를 보여줍니다.
         if (partnerInfo != null) ...[
           _buildProfileHeader(myInfo, partnerInfo, partnershipInfo, textTheme),
           const SizedBox(height: 24),
-          if (partnershipInfo != null) ...[
-            Row(
-              children: [
-                Expanded(child: _buildStatCard(icon: Icons.local_fire_department_rounded, iconColor: Colors.red.shade400, backgroundColor: Colors.red.shade50, value: '${partnershipInfo.streakCount}', label: '연속 스트릭', unit: '일')),
-                const SizedBox(width: 16),
-                Expanded(child: _buildStatCard(icon: Icons.star_rounded, iconColor: Colors.green.shade400, backgroundColor: Colors.green.shade50, value: '${partnershipInfo.chemiScore.toInt()}', label: '케미 지수', unit: '%')),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
           Row(
             children: [
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.emoji_events_rounded,
-                  iconColor: Colors.orange.shade400,
-                  backgroundColor: Colors.orange.shade50,
-                  value: '${partnershipInfo?.totalCompletedMissions}',
-                  label: '총 완료 미션',
-                ),
-              ),
+              Expanded(child: _buildStatCard(icon: Icons.local_fire_department_rounded, iconColor: Colors.red.shade400, backgroundColor: Colors.red.shade50, value: '${partnershipInfo?.streakCount ?? 0}', label: '연속 스트릭', unit: '일')),
               const SizedBox(width: 16),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.calendar_today_rounded,
-                  iconColor: Colors.blue.shade400,
-                  backgroundColor: Colors.blue.shade50,
-                  value: '${partnershipInfo?.weeklyCompletedMissions}/7',
-                  label: '이번 주 완료',
-                ),
-              ),
+              Expanded(child: _buildStatCard(icon: Icons.star_rounded, iconColor: Colors.green.shade400, backgroundColor: Colors.green.shade50, value: '${partnershipInfo?.chemiScore.toInt() ?? 0}', label: '케미 지수', unit: '%')),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _buildStatCard(icon: Icons.emoji_events_rounded, iconColor: Colors.orange.shade400, backgroundColor: Colors.orange.shade50, value: '${partnershipInfo?.totalCompletedMissions ?? 0}', label: '총 완료 퀘스트')),
+              const SizedBox(width: 16),
+              Expanded(child: _buildStatCard(icon: Icons.calendar_today_rounded, iconColor: Colors.blue.shade400, backgroundColor: Colors.blue.shade50, value: '${partnershipInfo?.weeklyCompletedMissions ?? 0}/7', label: '이번 주 완료')),
             ],
           ),
           const SizedBox(height: 24),
         ],
-        // ✨ `hasPartner` 인자를 전달하도록 수정합니다.
         _buildSettingsMenu(context, hasPartner: partnerInfo != null),
         const SizedBox(height: 24),
         _buildAccountManagementMenu(context, hasPartner: partnerInfo != null),
@@ -188,8 +168,25 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with AutomaticKeepA
               : null,
         ),
         const SizedBox(height: 8),
-        Text(info.nickname, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-        Text(role, style: textTheme.bodySmall?.copyWith(color: Colors.grey)),
+        RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: textTheme.bodyLarge?.color,
+            ),
+            children: [
+              TextSpan(text: info.nickname),
+              TextSpan(
+                text: '\n$role',
+                style: textTheme.bodySmall?.copyWith(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -257,8 +254,8 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with AutomaticKeepA
             child: Text('설정', style: Theme.of(context).textTheme.titleMedium),
           ),
           _buildMenuListItem(icon: Icons.person_outline, title: '프로필 수정', subtitle: '닉네임, 프로필 사진 변경', onTap: () => context.push('/edit_profile')),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          _buildMenuListItem(icon: Icons.notifications_none, title: '알림 설정', subtitle: '미션 알림, 파트너 알림 관리', onTap: () {}),
+          // const Divider(height: 1, indent: 16, endIndent: 16),
+          // _buildMenuListItem(icon: Icons.notifications_none, title: '알림 설정', subtitle: '미션 알림, 파트너 알림 관리', onTap: () {}),
           if (!hasPartner) ...[
             const Divider(height: 1, indent: 16, endIndent: 16),
             _buildMenuListItem(icon: Icons.favorite_border, title: '파트너 연결하기', subtitle: '파트너를 찾아 연결해보세요', onTap: () => context.push('/partner_linking')),
@@ -286,7 +283,7 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with AutomaticKeepA
           _buildMenuListItem(
             icon: Icons.lock_outline,
             title: '비밀번호 변경',
-            subtitle: '계정의 비밀번호를 변경합니다',
+            subtitle: '현재 로그인한 계정의 비밀번호를 변경',
             onTap: () => context.push('/change_password'),
           ),
           if (hasPartner) ...[
@@ -297,15 +294,13 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with AutomaticKeepA
               subtitle: '현재 파트너와의 연결 끊기',
               textColor: Colors.red,
               onTap: () async {
-                // ✨ 복잡한 showDialog 대신, 새로 만든 showConfirmationDialog를 사용합니다.
                 final confirmed = await showConfirmationDialog(
                   context: context,
                   title: '정말 관계를 해제하시겠어요?',
-                  content: '이 작업은 되돌릴 수 없으며, 모든 기록이 사라집니다.',
+                  content: '이 작업은 되돌릴 수 없으며,\n모든 기록이 사라집니다.',
                   confirmText: '해제하기',
                   isDestructive: true,
                 );
-
                 if (confirmed) {
                   try {
                     await ref.read(myPageViewModelProvider.notifier).breakUp();
@@ -319,12 +314,24 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with AutomaticKeepA
             ),
           ],
           const Divider(height: 1, indent: 16, endIndent: 16),
+          // ✨ 로그아웃 버튼에 다이얼로그를 추가합니다.
           _buildMenuListItem(
             icon: Icons.logout,
             title: '로그아웃',
             subtitle: '계정에서 안전하게 로그아웃',
             textColor: Colors.red,
-            onTap: () => ref.read(authStateProvider.notifier).logout(),
+            onTap: () async {
+              final confirmed = await showConfirmationDialog(
+                context: context,
+                title: '로그아웃 하시겠어요?',
+                content: '언제든지 다시 로그인할 수 있어요.',
+                confirmText: '로그아웃',
+                isDestructive: true,
+              );
+              if (confirmed) {
+                ref.read(authStateProvider.notifier).logout();
+              }
+            },
           ),
         ],
       ),

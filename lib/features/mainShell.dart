@@ -37,7 +37,7 @@ class _MainShellState extends State<MainShell> {
       case 0:
         return 'ChemiQ';
       case 1:
-        return '미션 현황'; // 탭 제목 추가
+        return '퀘스트 현황'; // 탭 제목 추가
       case 2:
         return '타임라인';
       case 3:
@@ -102,7 +102,7 @@ class _MainShellState extends State<MainShell> {
           // ✨ 하단 탭 아이템 목록에 '미션 현황'을 추가합니다.
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: '홈'),
-            BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), activeIcon: Icon(Icons.check_circle), label: '미션 현황'),
+            BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), activeIcon: Icon(Icons.check_circle), label: '퀘스트 현황'),
             BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), activeIcon: Icon(Icons.calendar_today), label: '타임라인'),
             BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: '마이페이지'),
           ],

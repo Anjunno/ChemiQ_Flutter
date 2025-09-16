@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- ✨ 1. 최신 안드로이드(13 이상)에서 갤러리 사진에 접근하기 위한 권한입니다. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!-- ✨ 2. 이전 버전 안드로이드와의 호환성을 위한 권한입니다. -->
+    <!-- maxSdkVersion="32"는 이 권한을 Android 12L 이하에서만 요청하도록 합니다. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
     <application
         android:label="chemiq"
         android:name="${applicationName}"

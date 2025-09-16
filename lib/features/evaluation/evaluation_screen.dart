@@ -1,13 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chemiq/core/ui/chemiq_toast.dart';
-import 'package:chemiq/core/ui/widgets/custom_text_field.dart';
 import 'package:chemiq/core/ui/widgets/primary_button.dart';
 import 'package:chemiq/data/models/submission_detail_dto.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import '../home/home_screen_view_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../home/home_screen_view_model.dart';
 import 'evaluation_view_model.dart';
 
 class EvaluationScreen extends ConsumerStatefulWidget {
@@ -25,8 +24,16 @@ class EvaluationScreen extends ConsumerStatefulWidget {
 }
 
 class _EvaluationScreenState extends ConsumerState<EvaluationScreen> {
-  double _currentScore = 3.0;
-  final _commentController = TextEditingController();
+  late final TextEditingController _commentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _commentController = TextEditingController();
+    _commentController.addListener(() {
+      ref.read(evaluationViewModelProvider.notifier).onCommentChanged(_commentController.text);
+    });
+  }
 
   @override
   void dispose() {
@@ -40,6 +47,7 @@ class _EvaluationScreenState extends ConsumerState<EvaluationScreen> {
       if (next.status == EvaluationStatus.success) {
         showChemiQToast('평가를 완료했어요!', type: ToastType.success);
         ref.read(homeViewModelProvider.notifier).fetchTodayMission();
+        ref.invalidate(myPageInfoProvider);
         context.pop();
       }
       if (next.status == EvaluationStatus.error && next.errorMessage != null) {
@@ -48,10 +56,11 @@ class _EvaluationScreenState extends ConsumerState<EvaluationScreen> {
     });
 
     final state = ref.watch(evaluationViewModelProvider);
+    final viewModel = ref.read(evaluationViewModelProvider.notifier);
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('파트너 평가하기')),
+      appBar: AppBar(title: const Text('코멘트 남기기')),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: SingleChildScrollView(
@@ -63,23 +72,16 @@ class _EvaluationScreenState extends ConsumerState<EvaluationScreen> {
               const SizedBox(height: 12),
               _buildSubmissionPreview(),
               const SizedBox(height: 32),
-
-              Text('평가 남기기', style: textTheme.titleLarge),
+              Text('코멘트 남기기', style: textTheme.titleLarge),
               const SizedBox(height: 16),
-              _buildEvaluationForm(state),
+              _buildEvaluationForm(state, viewModel),
               const SizedBox(height: 32),
-
-              // ✨ ElevatedButton 대신 새로 만든 PrimaryButton 사용
               PrimaryButton(
-                text: '평가 제출하기',
+                text: '제출하기',
                 isLoading: state.status == EvaluationStatus.loading,
-                onPressed: () {
-                  ref.read(evaluationViewModelProvider.notifier).submitEvaluation(
-                    submissionId: widget.submissionId,
-                    score: _currentScore,
-                    comment: _commentController.text.trim(),
-                  );
-                },
+                onPressed: state.isFormValid
+                    ? () => viewModel.submitEvaluation(submissionId: widget.submissionId)
+                    : null,
               ),
             ],
           ),
@@ -101,8 +103,8 @@ class _EvaluationScreenState extends ConsumerState<EvaluationScreen> {
             imageUrl: widget.partnerSubmission.imageUrl,
             fit: BoxFit.cover,
             width: double.infinity,
-            height: 220,
-            placeholder: (context, url) => Container(color: Colors.grey.shade200),
+            height: 300,
+            placeholder: (context, url) => Container(height: 300, color: Colors.grey.shade200),
             errorWidget: (context, url, error) => const Icon(Icons.error),
           ),
           if (widget.partnerSubmission.content.isNotEmpty)
@@ -121,52 +123,95 @@ class _EvaluationScreenState extends ConsumerState<EvaluationScreen> {
     );
   }
 
-  Widget _buildEvaluationForm(EvaluationState state) {
+  Widget _buildEvaluationForm(EvaluationState state, EvaluationViewModel viewModel) {
     return Card(
       elevation: 2,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            Text(
-              '점수: ${_currentScore.toStringAsFixed(1)}',
-              style: Theme.of(context).textTheme.titleMedium,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20.0, 20.0, 20.0, 16.0),
+            child: Column(
+              children: [
+                Text(
+                  '별점을 매겨주세요 (${state.score.toStringAsFixed(1)})',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                _buildStarRatingInput(
+                  currentScore: state.score,
+                  onScoreChanged: (newScore) => viewModel.onScoreChanged(newScore),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Slider(
-              value: _currentScore,
-              min: 0,
-              max: 5,
-              divisions: 10,
-              label: _currentScore.toStringAsFixed(1),
-              activeColor: Theme.of(context).colorScheme.primary,
-              inactiveColor: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-              onChanged: (double value) {
-                setState(() {
-                  _currentScore = value;
-                });
-              },
-            ),
-            const SizedBox(height: 24),
-            // ✨ TextField 대신 새로 만든 CustomTextField 사용
-            CustomTextField(
-              controller: _commentController,
-              hintText: '파트너에게 따뜻한 코멘트를 남겨주세요',
-              maxLines: 4,
-              maxLength: 150,
-            ),
-            // TextField(
-            //   controller: _commentController,
-            //   decoration: const InputDecoration(
-            //     hintText: '파트너에게 따뜻한 코멘트를 남겨주세요',
-            //
-            //   ),
-            // ),
-          ],
-        ),
+          ),
+          Container(
+            color: Colors.grey.shade50,
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+            // ✨ ConstrainedBox를 사용하여 최소 높이를 지정합니다.
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: 100, // 텍스트 필드의 최소 높이
+              ),
+              child: TextField(
+                controller: _commentController,
+                decoration: const InputDecoration(
+                  hintText: '파트너에게 따뜻한 코멘트를 남겨주세요',
+                  border: InputBorder.none,           // 기본 테두리 제거
+                  focusedBorder: InputBorder.none,    // 포커스 시 테두리 제거
+                  enabledBorder: InputBorder.none,    // 활성화 시 테두리 제거
+                  disabledBorder: InputBorder.none,   // 비활성화 시 테두리 제거
+                  fillColor: Colors.transparent,
+                ),
+                maxLines: null,
+                keyboardType: TextInputType.multiline,
+                maxLength: 150,
+              ),
+            )
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildStarRatingInput({
+    required double currentScore,
+    required ValueChanged<double> onScoreChanged,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double totalWidth = constraints.maxWidth;
+        void updateScore(Offset localPosition) {
+          final double starWidth = totalWidth / 5;
+          final double rawScore = localPosition.dx / starWidth;
+          final double newScore = (rawScore * 2).round() / 2;
+          onScoreChanged(newScore.clamp(0.0, 5.0));
+        }
+        return GestureDetector(
+          onHorizontalDragUpdate: (details) => updateScore(details.localPosition),
+          onTapDown: (details) => updateScore(details.localPosition),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (index) {
+              IconData icon;
+              if (currentScore >= index + 1) {
+                icon = Icons.star_rounded;
+              } else if (currentScore >= index + 0.5) {
+                icon = Icons.star_half_rounded;
+              } else {
+                icon = Icons.star_border_rounded;
+              }
+              return Icon(
+                icon,
+                color: Colors.amber,
+                size: 44,
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/models/member_info_dto.dart';
 import '../features/auth/provider/partner_state_provider.dart';
 import '../features/change_password/change_password_screen.dart';
 import '../features/edit_profile/edit_profile_screen.dart';
@@ -14,6 +15,7 @@ import '../features/mainShell.dart';
 import '../features/mission_detail/mission_detail_screen.dart';
 import '../features/mission_submission/mission_submission_screen.dart';
 import '../features/partner_linking/partner_linking_screen.dart';
+import '../features/photo_viewer_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -66,8 +68,25 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/mission_detail',
         builder: (context, state) {
-          final submission = state.extra as SubmissionDetailDto;
-          return MissionDetailScreen(submission: submission);
+          // ✨ extra로 전달된 Map에서 각 데이터를 추출합니다.
+          final extraData = state.extra as Map<String, dynamic>;
+          final submission = extraData['submission'] as SubmissionDetailDto;
+          final submitterInfo = extraData['submitterInfo'] as MemberInfoDto;
+          final missionTitle = extraData['missionTitle'] as String;
+
+          // ✨ 추출한 데이터를 MissionDetailScreen에 전달합니다.
+          return MissionDetailScreen(
+            submission: submission,
+            submitterInfo: submitterInfo,
+            missionTitle: missionTitle,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/photo_viewer',
+        builder: (context, state) {
+          final imageUrl = state.extra as String;
+          return PhotoViewerScreen(imageUrl: imageUrl);
         },
       )
     ],

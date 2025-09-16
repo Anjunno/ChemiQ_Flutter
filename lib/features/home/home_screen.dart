@@ -19,21 +19,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
   bool get wantKeepAlive => true;
 
   @override
-  @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(homeViewModelProvider.notifier).fetchTodayMission();
-      ref.invalidate(myPageInfoProvider);
+      _refreshData();
     });
   }
 
   Future<void> _refreshData() async {
-    // 두 데이터를 동시에 새로고침합니다.
     ref.read(homeViewModelProvider.notifier).fetchTodayMission();
     ref.invalidate(myPageInfoProvider);
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -46,11 +42,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
       if (wasLoading && next.hasValue && next.value?.partnerInfo == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            // ✨ 복잡한 showDialog 대신, 새로 만든 showActionDialog를 사용합니다.
             showActionDialog(
               context: context,
               title: '파트너를 연결해주세요',
-              content: 'ChemiQ의 모든 기능을 사용하려면 파트너 연결이 필요해요. 지금 바로 파트너를 찾아볼까요?',
+              content: 'ChemiQ의 모든 기능을 사용하려면\n파트너 연결이 필요해요.\n지금 바로 파트너를 찾아볼까요?',
               actionText: '연결하러 가기',
               onAction: () => context.push('/partner_linking'),
             );
@@ -60,10 +55,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     });
 
     return RefreshIndicator(
-      onRefresh: () async {
-        ref.read(homeViewModelProvider.notifier).fetchTodayMission();
-        ref.invalidate(myPageInfoProvider);
-      },
+      onRefresh: _refreshData,
       child: myPageState.when(
         loading: () => _buildLoadingShimmer(),
         error: (err, stack) => Center(child: Text('오류가 발생했습니다: $err')),
@@ -92,7 +84,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
           const SizedBox(height: 20),
           _buildTodayMissionCard(mission, context),
           const SizedBox(height: 20),
-          _buildTodaysTipCard(context),
+          // ✨ '오늘의 팁' 대신 '오늘의 진행 상황' 카드를 표시합니다.
+          if (mission != null) _buildProgressCard(missionState),
         ],
       ),
     );
@@ -104,7 +97,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
       return const SizedBox.shrink(); // 파트너 없으면 아무것도 안보여줌
     }
     return Card(
-      elevation: 2,
+      // elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
@@ -181,12 +174,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
               ),
               const SizedBox(height: 16),
               Text(
-                '오늘의 미션',
+                '오늘의 퀘스트',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey.shade600),
               ),
               const SizedBox(height: 8),
               Text(
-                mission?.missionTitle ?? '파트너를 연결하고 미션을 받아보세요!',
+                mission?.missionTitle ?? '파트너를 연결하고 퀘스트를 받아보세요!',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
@@ -203,7 +196,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
                     padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
-                  child: const Text('미션 인증하기'),
+                  child: const Text('퀘스트 인증하기'),
                 )
               else if (mission != null && mission.mySubmission != null)
                 OutlinedButton(
@@ -221,33 +214,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     );
   }
 
-  Widget _buildTodaysTipCard(BuildContext context) {
+  // ✨ '오늘의 진행 상황'을 보여주는 새로운 카드 위젯
+  Widget _buildProgressCard(HomeState missionState) {
+    if (missionState.dailyMission == null) return const SizedBox.shrink();
+
+    final mission = missionState.dailyMission!;
+    final bool iSubmitted = mission.mySubmission != null;
+    final bool partnerSubmitted = mission.partnerSubmission != null;
+    final bool iEvaluated = partnerSubmitted && mission.partnerSubmission!.score != null;
+    final bool partnerEvaluated = iSubmitted && mission.mySubmission!.score != null;
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Colors.lightGreen.shade50,
+      // color: Colors.blue.shade50,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.lightbulb_outline_rounded, color: Colors.green),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('오늘의 팁', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.green.shade800)),
-                  const SizedBox(height: 4),
-                  Text(
-                      '하늘 사진을 찍을 땐 황금시간대(일출/일몰)를 노려보세요! ✨',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.green.shade900)
-                  ),
-                ],
-              ),
+            Text('오늘의 진행 상황', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold,)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: _buildProgressItem(icon: Icons.photo_camera_outlined, label: '내가 제출', isDone: iSubmitted)),
+                const SizedBox(width: 12),
+                Expanded(child: _buildProgressItem(icon: Icons.photo_camera_outlined, label: '파트너 제출', isDone: partnerSubmitted)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: _buildProgressItem(icon: Icons.rate_review_outlined, label: '내가 평가', isDone: iEvaluated)),
+                const SizedBox(width: 12),
+                Expanded(child: _buildProgressItem(icon: Icons.rate_review_outlined, label: '파트너 평가', isDone: partnerEvaluated)),
+              ],
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // ✨ 진행 상황의 각 항목을 보여주는 위젯
+  Widget _buildProgressItem({required IconData icon, required String label, required bool isDone}) {
+    final color = isDone ? Theme.of(context).colorScheme.secondary : Colors.grey.shade400;
+    return Row(
+      children: [
+        Icon(isDone ? Icons.check_circle : Icons.radio_button_unchecked, color: color, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: isDone ? Colors.black87 : Colors.grey.shade600,
+            fontWeight: isDone ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ],
     );
   }
 

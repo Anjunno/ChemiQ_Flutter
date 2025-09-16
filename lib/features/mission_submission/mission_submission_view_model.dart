@@ -1,36 +1,38 @@
 import 'dart:typed_data';
+import 'package:chemiq/data/repositories/mission_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../data/repositories/mission_repository.dart';
-
 // 미션 제출 과정의 상태를 나타내는 Enum
 enum SubmissionStatus {
-  idle,       // 초기 상태
-  loading,    // 로딩 중 (전체 과정)
-  success,    // 성공
-  error,      // 실패
+  idle,
+  loading,
+  success,
+  error,
 }
 
 // 미션 제출 화면의 전체 상태를 관리하는 클래스
 class MissionSubmissionState {
   final SubmissionStatus status;
-  final XFile? selectedImage; // 사용자가 선택한 이미지 파일
+  final XFile? selectedImage;
   final String? errorMessage;
-  final int contentLength; // ✨ 현재 글자 수를 관리하기 위한 상태 추가
+  final int contentLength;
+
+  // ✨ 사진과 기록이 모두 입력되었는지 확인하는 getter를 추가합니다.
+  bool get isFormValid => selectedImage != null && contentLength > 0;
 
   MissionSubmissionState({
     this.status = SubmissionStatus.idle,
     this.selectedImage,
     this.errorMessage,
-    this.contentLength = 0, // ✨ 초기값 0
+    this.contentLength = 0,
   });
 
   MissionSubmissionState copyWith({
     SubmissionStatus? status,
     XFile? selectedImage,
     String? errorMessage,
-    int? contentLength, // ✨ copyWith에 추가
+    int? contentLength,
   }) {
     return MissionSubmissionState(
       status: status ?? this.status,
@@ -41,34 +43,31 @@ class MissionSubmissionState {
   }
 }
 
-// 상태(MissionSubmissionState)와 로직을 관리하는 ViewModel
+// ViewModel
 class MissionSubmissionViewModel extends StateNotifier<MissionSubmissionState> {
   final MissionRepository _missionRepository;
   final ImagePicker _picker = ImagePicker();
 
   MissionSubmissionViewModel(this._missionRepository) : super(MissionSubmissionState());
 
-  /// 갤러리에서 이미지 선택하기
-  Future<void> pickImage() async {
+  Future<void> pickImage(ImageSource source) async {
     try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85); // 이미지 품질 조절
+      final XFile? image = await _picker.pickImage(source: source, imageQuality: 85);
       if (image != null) {
         state = state.copyWith(selectedImage: image, status: SubmissionStatus.idle);
       }
     } catch (e) {
-      state = state.copyWith(status: SubmissionStatus.error, errorMessage: '이미지를 가져오는 데 실패했어요.');
+      state = state.copyWith(status: SubmissionStatus.error, errorMessage: '이미지를 가져오는 데 실패했어요. 권한을 확인해주세요.');
     }
   }
 
-  /// 전체 미션 제출 프로세스 실행
   Future<void> submitMission({
     required int dailyMissionId,
     required String content,
   }) async {
-    if (state.selectedImage == null) {
-      state = state.copyWith(status: SubmissionStatus.error, errorMessage: '사진을 선택해주세요.');
-      return;
-    }
+    // ✨ isFormValid를 사용하여 버튼이 비활성화되므로, 이중 체크는 선택사항입니다.
+    if (!state.isFormValid || state.status == SubmissionStatus.loading) return;
+
     state = state.copyWith(status: SubmissionStatus.loading, errorMessage: null);
     try {
       final imageFile = state.selectedImage!;
@@ -86,7 +85,6 @@ class MissionSubmissionViewModel extends StateNotifier<MissionSubmissionState> {
     }
   }
 
-  // ✨ 글 내용이 변경될 때마다 글자 수를 업데이트하는 메서드
   void onContentChanged(String content) {
     state = state.copyWith(contentLength: content.length);
   }

@@ -22,7 +22,7 @@ void showChemiQToast(
       backgroundColor = AppColors.secondary; // 성공: 세이지 그린
       break;
     case ToastType.error:
-      backgroundColor = AppColors.primary; // 에러: 빨간색
+      backgroundColor = AppColors.secondary; //
       break;
     case ToastType.normal:
       backgroundColor = Colors.black87; // 일반: 검은색

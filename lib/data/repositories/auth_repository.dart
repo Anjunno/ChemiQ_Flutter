@@ -1,3 +1,4 @@
+
 import 'package:dio/dio.dart';
 import 'package:chemiq/core/di/service_locator.dart';
 import 'package:chemiq/core/dio/dio_client.dart';
@@ -99,7 +100,7 @@ class AuthRepository {
     }
   }
 
-  /// (✨ 추가된 부분) 회원가입 API 호출
+  /// 회원가입 API 호출
   Future<void> signUp({
     required String memberId,
     required String password,
@@ -121,10 +122,12 @@ class AuthRepository {
     } on DioException catch (e) {
       // Dio 에러 처리
       if (e.response?.statusCode == 409) {
-        // 409 Conflict 에러는 아이디 중복을 의미합니다.
-        throw Exception('이미 사용 중인 아이디입니다.');
+        // 409 Conflict 에러는 아이디 중복.
+        // throw CustomException('이미 사용 중인 아이디입니다.');
+        throw '이미 사용 중인 아이디입니다.';
       }
       // 그 외 다른 에러
+      throw '회원가입에 실패했습니다';
       throw Exception('회원가입에 실패했습니다: ${e.message}');
     } catch (e) {
       // 알 수 없는 에러

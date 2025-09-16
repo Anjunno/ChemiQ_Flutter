@@ -38,7 +38,7 @@ class SignUpState {
     this.nickname = '',
     this.isIdValid = false,
     this.passwordRequirements = const [
-      PasswordRequirement("8~12자 입력", false),
+      PasswordRequirement("8~16자 입력", false),
       PasswordRequirement("영문 포함", false),
       PasswordRequirement("숫자 포함", false),
       PasswordRequirement("특수문자 포함", false),
@@ -89,7 +89,7 @@ class SignUpViewModel extends StateNotifier<SignUpState> {
   // 비밀번호 유효성 검사 (규칙 체크리스트)
   void validatePassword(String password) {
     final requirements = [
-      PasswordRequirement("8~12자 입력", password.length >= 8 && password.length <= 12),
+      PasswordRequirement("8~16자 입력", password.length >= 8 && password.length <= 16),
       PasswordRequirement("영문 포함", RegExp(r'[a-zA-Z]').hasMatch(password)),
       PasswordRequirement("숫자 포함", RegExp(r'[0-9]').hasMatch(password)),
       PasswordRequirement("특수문자 포함", RegExp(r'[\W_]').hasMatch(password)),

@@ -80,20 +80,17 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticK
     );
   }
 
-  // ✨ 날짜/제목 헤더 디자인을 개선한 위젯
   Widget _buildTimelineItem(DailyMissionResponse mission, MyPageResponse? myPageInfo, BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- 새로운 날짜 및 제목 헤더 ---
           Padding(
             padding: const EdgeInsets.only(bottom: 16.0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // '일'을 크게 표시
                 Text(
                   DateFormat('d').format(mission.missionDate),
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -102,7 +99,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticK
                   ),
                 ),
                 const SizedBox(width: 12),
-                // '월, 요일'과 '미션 제목'을 세로로 배치
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,27 +120,43 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticK
             ),
           ),
 
-          // --- 제출물 카드 목록 ---
           if (mission.mySubmission != null && myPageInfo != null)
-            _buildSubmissionCard('나의 기록', mission.mySubmission!, myPageInfo.myInfo, context),
+            _buildSubmissionCard(
+              '나의 기록',
+              mission.mySubmission!,
+              myPageInfo.myInfo,
+              context,
+              mission.missionTitle,
+            ),
 
           if (mission.mySubmission != null && mission.partnerSubmission != null)
             const SizedBox(height: 16),
 
           if (mission.partnerSubmission != null && myPageInfo?.partnerInfo != null)
-            _buildSubmissionCard('파트너의 기록', mission.partnerSubmission!, myPageInfo!.partnerInfo!, context),
+            _buildSubmissionCard(
+              '파트너의 기록',
+              mission.partnerSubmission!,
+              myPageInfo!.partnerInfo!,
+              context,
+              mission.missionTitle,
+            ),
 
           if (mission.mySubmission == null && mission.partnerSubmission == null)
-            const Center(child: Text('이 날은 미션을 제출하지 않았어요.', style: TextStyle(color: Colors.grey))),
+            const Center(child: Text('이 날은 퀘스트를 제출하지 않았어요.', style: TextStyle(color: Colors.grey))),
         ],
       ),
     );
   }
 
-  // ✨ 개별 제출물을 보여주는 카드 위젯
-  Widget _buildSubmissionCard(String title, SubmissionDetailDto submission, MemberInfoDto submitter, BuildContext context) {
+  Widget _buildSubmissionCard(String title, SubmissionDetailDto submission, MemberInfoDto submitter, BuildContext context, String missionTitle) {
     return InkWell(
-      onTap: () => context.push('/mission_detail', extra: submission),
+      onTap: () {
+        context.push('/mission_detail', extra: {
+          'submission': submission,
+          'submitterInfo': submitter,
+          'missionTitle': missionTitle,
+        });
+      },
       borderRadius: BorderRadius.circular(16),
       child: Card(
         elevation: 2,
@@ -178,10 +190,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticK
                       const SizedBox(width: 8),
                       Text(submitter.nickname, style: Theme.of(context).textTheme.titleSmall),
                       const Spacer(),
-                      if (title == '나의 기록' && submission.score != null)
+                      // ✨ partnerScore, myScore 대신 score 필드를 사용합니다.
+                      if (submission.score != null)
                         _buildStarRating(submission.score!)
-                      else if (title == '파트너의 기록' && submission.score != null)
-                        _buildStarRating(submission.score!),
                     ],
                   ),
                   const SizedBox(height: 8),

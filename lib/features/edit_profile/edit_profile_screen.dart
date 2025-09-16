@@ -6,24 +6,49 @@ import 'package:go_router/go_router.dart';
 import '../mypage/mypage_view_model.dart';
 import 'edit_profile_view_model.dart';
 
-class EditProfileScreen extends ConsumerWidget {
+// ✨ ConsumerWidget에서 ConsumerStatefulWidget으로 변경
+class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // 마이페이지 정보를 가져와 현재 닉네임과 프로필 사진을 표시합니다.
+  ConsumerState<EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
+  // ✨ 컨트롤러를 State 내에서 선언하여 생명주기를 관리합니다.
+  late final TextEditingController _nicknameController;
+
+  @override
+  void initState() {
+    super.initState();
+    // initState에서는 ref.watch를 사용할 수 없으므로, ref.read로 현재 닉네임 값을 한 번만 가져옵니다.
+    final currentNickname = ref.read(myPageViewModelProvider).myPageInfo?.myInfo.nickname ?? '';
+    _nicknameController = TextEditingController(text: currentNickname);
+
+    // 컨트롤러에 리스너를 추가하여, 텍스트가 변경될 때마다 ViewModel의 유효성 검사 함수를 호출합니다.
+    _nicknameController.addListener(() {
+      ref.read(editProfileViewModelProvider.notifier).validateNickname(_nicknameController.text);
+    });
+  }
+
+  @override
+  void dispose() {
+    _nicknameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 마이페이지 정보를 가져와 현재 프로필 사진을 표시합니다.
     final myPageState = ref.watch(myPageViewModelProvider);
     final myInfo = myPageState.myPageInfo?.myInfo;
 
     final state = ref.watch(editProfileViewModelProvider);
     final viewModel = ref.read(editProfileViewModelProvider.notifier);
 
-    final nicknameController = TextEditingController(text: myInfo?.nickname);
-
     ref.listen(editProfileViewModelProvider, (previous, next) {
       if (next.successMessage != null) {
         showChemiQToast(next.successMessage!, type: ToastType.success);
-        // 성공 시, 마이페이지 정보를 새로고침하여 변경사항을 반영합니다.
         ref.read(myPageViewModelProvider.notifier).fetchMyPageInfo();
         context.pop();
       }
@@ -36,10 +61,9 @@ class EditProfileScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('프로필 수정'),
         actions: [
-          // '저장' 버튼
           TextButton(
-            onPressed: state.isNicknameLoading ? null : () {
-              viewModel.changeNickname(nicknameController.text.trim());
+            onPressed: (state.isNicknameLoading || !state.isNicknameValid) ? null : () {
+              viewModel.changeNickname(_nicknameController.text.trim());
             },
             child: const Text('저장'),
           ),
@@ -50,7 +74,6 @@ class EditProfileScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 프로필 사진 변경
             GestureDetector(
               onTap: () => ref.read(myPageViewModelProvider.notifier).updateProfileImage(),
               child: Stack(
@@ -87,8 +110,6 @@ class EditProfileScreen extends ConsumerWidget {
               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
             ),
             const SizedBox(height: 32),
-
-            // 닉네임 변경
             Card(
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -102,13 +123,13 @@ class EditProfileScreen extends ConsumerWidget {
                   children: [
                     const Text('닉네임', style: TextStyle(fontWeight: FontWeight.bold)),
                     TextField(
-                      controller: nicknameController,
+                      controller: _nicknameController, // State에서 관리하는 컨트롤러 사용
                       maxLength: 10,
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         hintText: '닉네임을 입력하세요',
+                        counterText: "", // 글자 수 카운터 숨기기
                       ),
-                      onChanged: (text) => viewModel.validateNickname(text),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -130,8 +151,6 @@ class EditProfileScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 32),
-
-            // 프로필 안내
             _buildInfoCard(context),
           ],
         ),
@@ -151,17 +170,15 @@ class EditProfileScreen extends ConsumerWidget {
           children: [
             Text('프로필 안내', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            // ✨ _buildInfoRow를 호출할 때 context를 전달합니다.
             _buildInfoRow(context, Icons.photo_library_outlined, '프로필 사진', '파트너에게 보여질 대표 사진이에요'),
             const SizedBox(height: 12),
-            _buildInfoRow(context, Icons.person_outline, '닉네임', '미션과 타임라인에서 사용되는 이름이에요'),
+            _buildInfoRow(context, Icons.person_outline, '닉네임', '퀘스트와 타임라인에서 사용되는 이름이에요'),
           ],
         ),
       ),
     );
   }
 
-  // ✨ _buildInfoRow 메서드가 BuildContext를 파라미터로 받도록 수정합니다.
   Widget _buildInfoRow(BuildContext context, IconData icon, String title, String subtitle) {
     return Row(
       children: [
@@ -171,7 +188,6 @@ class EditProfileScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-            // 이제 context에 정상적으로 접근할 수 있습니다.
             Text(subtitle, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
           ],
         )

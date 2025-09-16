@@ -107,7 +107,7 @@ class _PartnerLinkingScreenState extends ConsumerState<PartnerLinkingScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            '파트너의 아이디를 입력해서 함께 미션을 시작해보세요!',
+            '파트너의 아이디를 입력해서 함께 퀘스트를 시작해보세요!',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
           ),
@@ -118,7 +118,7 @@ class _PartnerLinkingScreenState extends ConsumerState<PartnerLinkingScreen> {
                 child: TextField(
                   controller: partnerIdController,
                   decoration: InputDecoration(
-                    hintText: '파트너 아이디를 입력하세요',
+                    hintText: '파트너 아이디 입력',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey.shade300),
