@@ -153,6 +153,7 @@ class _MissionStatusScreenState extends ConsumerState<MissionStatusScreen> with 
         required int evaluationCount,
       }) {
     return Card(
+        elevation:0,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
         child: Padding(
@@ -245,7 +246,8 @@ class _MissionStatusScreenState extends ConsumerState<MissionStatusScreen> with 
     final String title = isMe ? '내 기록' : '파트너 기록';
     final String subtitle = isMe ? '나의 퀘스트 수행 결과' : '파트너의 퀘스트 수행 결과';
     return Card(
-      elevation: 2,
+      // elevation: 2,
+      elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -434,6 +436,7 @@ class _MissionStatusScreenState extends ConsumerState<MissionStatusScreen> with 
         ),
         const SizedBox(height: 12),
         Card(
+        elevation : 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: AspectRatio(aspectRatio: 4/3, child: Container(color: Colors.white)),
         )

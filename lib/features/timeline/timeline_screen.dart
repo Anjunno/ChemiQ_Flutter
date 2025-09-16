@@ -159,7 +159,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticK
       },
       borderRadius: BorderRadius.circular(16),
       child: Card(
-        elevation: 2,
+        // elevation: 2,
+        elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         clipBehavior: Clip.antiAlias,
         child: Column(

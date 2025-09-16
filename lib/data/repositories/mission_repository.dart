@@ -10,6 +10,7 @@ import '../models/evaluation_request.dart';
 import '../models/presignedUrl_request.dart';
 import '../models/submission_create_request.dart';
 import '../models/timeline_item_dto.dart';
+import '../models/weekly_status_dto.dart';
 
 class MissionRepository {
   final DioClient _dioClient;
@@ -138,7 +139,20 @@ class MissionRepository {
       throw '평가 정보를 불러오는 데 실패했어요.';
     }
   }
+
+  // 주간 미션 현황을 WeeklyMissionStatusResponse 객체로 조회합니다.
+  Future<WeeklyMissionStatusResponse> getWeeklyStatus() async {
+    try {
+      final response = await _dioClient.dio.get('/missions/weekly-status');
+      return WeeklyMissionStatusResponse.fromJson(response.data);
+    } catch (e) {
+      print('주간 현황 조회 실패: $e');
+      throw '주간 현황을 불러오는 데 실패했어요.';
+    }
+  }
 }
+
+
 
 // MissionRepository의 인스턴스를 제공하는 Provider입니다.
 final missionRepositoryProvider = Provider<MissionRepository>((ref) {

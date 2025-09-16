@@ -2,9 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/ui/widgets/showConfirmation_dialog.dart';
 import '../../data/models/myPage_response.dart';
+import '../../data/models/weekly_status_dto.dart';
 import 'home_screen_view_model.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -29,13 +31,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
   Future<void> _refreshData() async {
     ref.read(homeViewModelProvider.notifier).fetchTodayMission();
     ref.invalidate(myPageInfoProvider);
+    ref.invalidate(weeklyStatusProvider);
   }
+
+
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
     final missionState = ref.watch(homeViewModelProvider);
     final myPageState = ref.watch(myPageInfoProvider);
+    // ✨ 주간 현황 데이터를 감시합니다.
+    final weeklyStatusState = ref.watch(weeklyStatusProvider);
 
     ref.listen<AsyncValue<MyPageResponse>>(myPageInfoProvider, (previous, next) {
       final wasLoading = previous == null || previous.isLoading;
@@ -66,13 +73,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
           if (missionState.error != null) {
             return Center(child: Text(missionState.error!));
           }
-          return _buildBody(missionState, myPageInfo);
+          return _buildBody(missionState, myPageInfo, weeklyStatusState);
         },
       ),
     );
   }
 
-  Widget _buildBody(HomeState missionState, MyPageResponse? myPageInfo) {
+  // ✨ weeklyStatusState를 파라미터로 받도록 수정
+  Widget _buildBody(HomeState missionState, MyPageResponse? myPageInfo, AsyncValue<WeeklyMissionStatusResponse> weeklyStatusState) {
     final mission = missionState.dailyMission;
 
     return SingleChildScrollView(
@@ -84,10 +92,93 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
           const SizedBox(height: 20),
           _buildTodayMissionCard(mission, context),
           const SizedBox(height: 20),
-          // ✨ '오늘의 팁' 대신 '오늘의 진행 상황' 카드를 표시합니다.
+
+
           if (mission != null) _buildProgressCard(missionState),
+          const SizedBox(height: 20),
+          // ✨ 주간 미션 트래커 카드를 여기에 추가합니다.
+          weeklyStatusState.when(
+            data: (statuses) => _buildWeeklyTrackerCard(statuses),
+            loading: () => const SizedBox.shrink(), // 로딩 중에는 잠시 숨김
+            error: (e, s) => const SizedBox.shrink(), // 에러 시에도 숨김
+          ),
         ],
       ),
+    );
+  }
+
+  // ✨ 주간 미션 트래커 카드 위젯
+  Widget _buildWeeklyTrackerCard(WeeklyMissionStatusResponse weeklyStatus) {
+    const List<String> daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+    final Map<String, String> dayLabels = {
+      'MONDAY': '월', 'TUESDAY': '화', 'WEDNESDAY': '수', 'THURSDAY': '목', 'FRIDAY': '금', 'SATURDAY': '토', 'SUNDAY': '일'
+    };
+
+    return Card(
+      // elevation: 2,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('이번 주 퀘스트 현황', style:Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold,)),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: daysOfWeek.map((dayKey) {
+                final statusDto = weeklyStatus.weeklyStatus[dayKey];
+                return _buildDayStatus(dayLabels[dayKey]!, statusDto);
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDayStatus(String dayLabel, MissionStatusDto? statusDto) {
+    final todayLabel = DateFormat('E', 'ko_KR').format(DateTime.now());
+    final isToday = dayLabel == todayLabel;
+
+    Color circleColor;
+    IconData? icon;
+
+    switch (statusDto?.status) {
+      case DailyMissionStatus.COMPLETED:
+        circleColor = Theme.of(context).colorScheme.secondary;
+        icon = Icons.check;
+        break;
+      case DailyMissionStatus.ASSIGNED:
+        circleColor = Theme.of(context).colorScheme.primary.withOpacity(0.7);
+        break;
+      case DailyMissionStatus.FAILED:
+        circleColor = Colors.grey.shade400;
+        icon = Icons.close;
+        break;
+      case DailyMissionStatus.NOT_ASSIGNED:
+      default:
+        circleColor = Colors.grey.shade200;
+        break;
+    }
+
+    return Column(
+      children: [
+        Text(
+          dayLabel,
+          style: TextStyle(
+            color: isToday ? Theme.of(context).colorScheme.primary : Colors.grey,
+            fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        const SizedBox(height: 8),
+        CircleAvatar(
+          radius: 18,
+          backgroundColor: circleColor,
+          child: icon != null ? Icon(icon, color: Colors.white, size: 20) : null,
+        ),
+      ],
     );
   }
 
@@ -98,6 +189,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     }
     return Card(
       // elevation: 2,
+      elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/dailyMission_response.dart';
 import '../../data/models/myPage_response.dart';
+import '../../data/models/weekly_status_dto.dart';
 import '../../data/repositories/member_repository.dart';
 
 // 홈 화면의 상태를 정의하는 클래스
@@ -74,4 +75,10 @@ final myPageInfoProvider = FutureProvider.autoDispose<MyPageResponse>((ref) {
   final memberRepository = ref.watch(memberRepositoryProvider);
   // 마이페이지 정보를 조회하는 API를 호출하고 결과를 반환합니다.
   return memberRepository.getMyPageInfo();
+});
+
+// ✨ 주간 미션 현황 데이터를 WeeklyMissionStatusResponse로 제공하는 Provider
+final weeklyStatusProvider = FutureProvider.autoDispose<WeeklyMissionStatusResponse>((ref) {
+  final missionRepository = ref.watch(missionRepositoryProvider);
+  return missionRepository.getWeeklyStatus();
 });
