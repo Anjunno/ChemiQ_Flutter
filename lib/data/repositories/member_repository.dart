@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/PresignedUrl_response.dart';
+import '../models/home_summary_dto.dart';
 import '../models/myPage_response.dart';
 import '../models/nickname_change_request.dart';
 import '../models/password_change_request.dart';
@@ -25,6 +26,17 @@ class MemberRepository {
     } catch (e) {
       print('마이페이지 정보 조회 실패: $e');
       throw '정보를 불러오는 데 실패했어요. 잠시 후 다시 시도해주세요.';
+    }
+  }
+
+  /// 홈페이지에 필요한 모든 정보를 서버에서 조회합니다.
+  Future<HomeSummaryDto> getHomeSummary() async {
+    try {
+      final response = await _dioClient.dio.get('/home-summary');
+      return HomeSummaryDto.fromJson(response.data);
+    } catch (e) {
+      print('홈 요약 정보 조회 실패: $e');
+      throw '홈 화면 정보를 불러오는 데 실패했어요.';
     }
   }
 

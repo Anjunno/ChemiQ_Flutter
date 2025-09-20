@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart'; // Import the shimmer package
 import '../../data/models/dailyMission_response.dart';
 import '../../data/models/myPage_response.dart';
 import '../home/home_screen_view_model.dart';
@@ -43,10 +44,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticK
   Widget build(BuildContext context) {
     super.build(context);
     final state = ref.watch(timelineViewModelProvider);
-    final myPageState = ref.watch(myPageInfoProvider);
+    final myPageState = ref.watch(timelineMyPageProvider);
 
-    if (state.isLoading || myPageState.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+    if (state.isLoading && state.missions.isEmpty || myPageState.isLoading) {
+      return _buildLoadingShimmer(); // Call shimmer effect when loading
     }
     if (state.error != null && state.missions.isEmpty) {
       return Center(child: Text(state.error!));
@@ -61,7 +62,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticK
     return RefreshIndicator(
       onRefresh: () async {
         ref.read(timelineViewModelProvider.notifier).fetchInitialTimeline();
-        ref.invalidate(myPageInfoProvider);
+        ref.invalidate(timelineMyPageProvider);
       },
       child: ListView.builder(
         controller: _scrollController,
@@ -80,6 +81,87 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticK
     );
   }
 
+  // ✨ Shimmer Loading Widgets
+  Widget _buildLoadingShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 4, // Show a few placeholder items
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Shimmer
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(width: 40, height: 40, color: Colors.white, margin: const EdgeInsets.only(right: 12)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(width: 150, height: 12, color: Colors.white),
+                        const SizedBox(height: 4),
+                        Container(width: 200, height: 20, color: Colors.white),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Submission Card Shimmer
+                _buildShimmerSubmissionCard(),
+                const SizedBox(height: 16),
+                _buildShimmerSubmissionCard(),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildShimmerSubmissionCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 220,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const CircleAvatar(radius: 14, backgroundColor: Colors.white),
+                    const SizedBox(width: 8),
+                    Container(width: 80, height: 16, color: Colors.white),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(width: double.infinity, height: 16, color: Colors.white),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Rest of your existing widgets...
   Widget _buildTimelineItem(DailyMissionResponse mission, MyPageResponse? myPageInfo, BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
@@ -159,8 +241,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticK
       },
       borderRadius: BorderRadius.circular(16),
       child: Card(
-        // elevation: 2,
-        elevation: 0,
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.08),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -191,7 +273,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticK
                       const SizedBox(width: 8),
                       Text(submitter.nickname, style: Theme.of(context).textTheme.titleSmall),
                       const Spacer(),
-                      // ✨ partnerScore, myScore 대신 score 필드를 사용합니다.
                       if (submission.score != null)
                         _buildStarRating(submission.score!)
                     ],
@@ -224,4 +305,3 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticK
     );
   }
 }
-

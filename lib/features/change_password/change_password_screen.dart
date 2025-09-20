@@ -18,6 +18,11 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   final _newPwController = TextEditingController();
   final _newPwConfirmController = TextEditingController();
 
+  // ✨ 각 TextField의 포커스를 관리하기 위한 FocusNode 추가
+  final _currentPwFocus = FocusNode();
+  final _newPwFocus = FocusNode();
+  final _newPwConfirmFocus = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -32,6 +37,10 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     _currentPwController.dispose();
     _newPwController.dispose();
     _newPwConfirmController.dispose();
+    // ✨ FocusNode도 dispose 처리
+    _currentPwFocus.dispose();
+    _newPwFocus.dispose();
+    _newPwConfirmFocus.dispose();
     super.dispose();
   }
 
@@ -63,28 +72,46 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             children: [
               _buildTextField(
                 controller: _currentPwController,
+                focusNode: _currentPwFocus,
                 label: '현재 비밀번호',
+                hintText : '현재 비밀번호',
+                prefixIcon: const Icon(Icons.lock_outline),
                 obscureText: !state.isCurrentPasswordVisible,
                 onToggleVisibility: viewModel.toggleCurrentPasswordVisibility,
-                maxLength: state.passwordMaxLength, // ✨ 최대 글자 수 적용
+                maxLength: state.passwordMaxLength,
+                textInputAction: TextInputAction.next,
+                onEditingComplete: () => _newPwFocus.requestFocus(),
               ),
               const SizedBox(height: 24),
               _buildTextField(
                 controller: _newPwController,
+                focusNode: _newPwFocus,
                 label: '새 비밀번호',
+                hintText : '새 비밀번호',
+                prefixIcon: const Icon(Icons.lock_outline),
                 obscureText: !state.isNewPasswordVisible,
                 onToggleVisibility: viewModel.toggleNewPasswordVisibility,
                 helperWidget: _buildPasswordRequirements(state.passwordRequirements),
-                maxLength: state.passwordMaxLength, // ✨ 최대 글자 수 적용
+                maxLength: state.passwordMaxLength,
+                textInputAction: TextInputAction.next,
+                onEditingComplete: () => _newPwConfirmFocus.requestFocus(),
               ),
               const SizedBox(height: 24),
               _buildTextField(
                 controller: _newPwConfirmController,
+                focusNode: _newPwConfirmFocus,
                 label: '새 비밀번호 확인',
+                hintText : '새 비밀번호 확인',
+                prefixIcon: const Icon(Icons.lock_outline),
                 obscureText: !state.isConfirmPasswordVisible,
                 onToggleVisibility: viewModel.toggleConfirmPasswordVisibility,
                 helperWidget: _buildConfirmPasswordHelperText(state),
-                maxLength: state.passwordMaxLength, // ✨ 최대 글자 수 적용
+                maxLength: state.passwordMaxLength,
+                textInputAction: TextInputAction.done,
+                onEditingComplete: () {
+                  _newPwConfirmFocus.unfocus();
+                  if (state.isFormValid) viewModel.changePassword();
+                },
               ),
               const SizedBox(height: 40),
               PrimaryButton(
@@ -99,14 +126,19 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     );
   }
 
-  // ✨ maxLength 파라미터를 추가하여 TextField에 적용합니다.
+  // ✨ FocusNode 관련 파라미터 추가
   Widget _buildTextField({
     required TextEditingController controller,
+    required FocusNode focusNode,
     required String label,
+    required String hintText,
     bool obscureText = true,
     VoidCallback? onToggleVisibility,
     Widget? helperWidget,
     int? maxLength,
+    TextInputAction? textInputAction,
+    VoidCallback? onEditingComplete,
+    Widget? prefixIcon,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,12 +147,17 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         const SizedBox(height: 8),
         TextField(
           controller: controller,
+          focusNode: focusNode,
           obscureText: obscureText,
           maxLength: maxLength,
+          textInputAction: textInputAction,
+          onEditingComplete: onEditingComplete,
           decoration: InputDecoration(
+            hintText : hintText,
             helperStyle: const TextStyle(height: 0),
             errorStyle: const TextStyle(height: 0),
-            counterText: "", // 글자 수 카운터는 숨깁니다.
+            counterText: "",
+            prefixIcon: prefixIcon,
             suffixIcon: onToggleVisibility != null
                 ? IconButton(
               icon: Icon(
@@ -191,4 +228,3 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     );
   }
 }
-

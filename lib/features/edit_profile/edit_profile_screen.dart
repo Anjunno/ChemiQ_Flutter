@@ -124,7 +124,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     const Text('닉네임', style: TextStyle(fontWeight: FontWeight.bold)),
                     TextField(
                       controller: _nicknameController, // State에서 관리하는 컨트롤러 사용
-                      maxLength: 10,
+                      maxLength: 6,
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         hintText: '닉네임을 입력하세요',
@@ -135,7 +135,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('2~10자 이내로 입력해주세요', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+                        Text('2~6자 이내로 입력해주세요', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
                         if (state.isNicknameValid)
                           const Row(
                             children: [

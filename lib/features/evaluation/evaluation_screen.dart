@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../home/home_screen_view_model.dart';
+import '../mission_status/mission_status_view_model.dart';
+import '../timeline/timeline_view_model.dart';
 import 'evaluation_view_model.dart';
 
 class EvaluationScreen extends ConsumerStatefulWidget {
@@ -43,12 +45,20 @@ class _EvaluationScreenState extends ConsumerState<EvaluationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✨ ViewModel의 상태 변화를 감지하여, 관련된 모든 Provider를 새로고침합니다.
     ref.listen(evaluationViewModelProvider, (previous, next) {
       if (next.status == EvaluationStatus.success) {
         showChemiQToast('평가를 완료했어요!', type: ToastType.success);
-        ref.read(homeViewModelProvider.notifier).fetchTodayMission();
-        ref.invalidate(myPageInfoProvider);
-        context.pop();
+
+        // 1. 홈 화면의 통합 데이터를 새로고침합니다.
+        ref.invalidate(homeSummaryProvider);
+        // 2. 미션 현황 탭의 데이터를 새로고침합니다.
+        ref.invalidate(missionStatusViewModelProvider);
+        ref.invalidate(missionStatusMyPageProvider);
+        // 3. 타임라인 탭의 데이터를 새로고침합니다.
+        ref.invalidate(timelineViewModelProvider);
+
+        context.pop(); // 이전 화면으로 돌아갑니다.
       }
       if (next.status == EvaluationStatus.error && next.errorMessage != null) {
         showChemiQToast(next.errorMessage!, type: ToastType.error);

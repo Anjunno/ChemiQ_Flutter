@@ -1,34 +1,37 @@
+
 import 'package:chemiq/data/models/partnership_sent_response.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chemiq/data/repositories/partnership_repository.dart';
 
-import '../../../data/models/partner_receive_response.dart';
+import '../../core/ui/chemiq_toast.dart';
+import '../../data/models/partner_receive_response.dart';
+import '../auth/provider/home_screen_data_provider.dart';
 import '../auth/provider/partner_state_provider.dart';
+import '../home/home_screen_view_model.dart';
+import '../mission_status/mission_status_view_model.dart';
+import '../mypage/mypage_view_model.dart';
+import '../timeline/timeline_view_model.dart';
 
-// 파트너 연결 화면의 모든 상태를 관리하는 클래스
+// PartnerLinkingState 클래스는 수정사항이 없습니다.
 class PartnerLinkingState {
-  // '요청 보내기' 기능 관련 상태
-  final bool isRequesting;      // 요청 보내기 로딩 여부
-  final String? requestError;   // 요청 보내기 실패 시 에러 메시지
-  final bool requestSuccess;    // 요청 보내기 성공 여부
-
-  // '요청 목록 조회' 기능 관련 상태
-  final bool areListsLoading;   // 목록 로딩 여부
-  final String? listError;      // 목록 조회 실패 시 에러 메시지
-  final List<PartnershipSentResponse> sentRequests;     // 보낸 요청 목록
-  final List<PartnershipReceiveResponse> receivedRequests; // 받은 요청 목록
+  final bool isRequesting;
+  final String? requestError;
+  final bool requestSuccess;
+  final bool areListsLoading;
+  final String? listError;
+  final List<PartnershipSentResponse> sentRequests;
+  final List<PartnershipReceiveResponse> receivedRequests;
 
   PartnerLinkingState({
     this.isRequesting = false,
     this.requestError,
     this.requestSuccess = false,
-    this.areListsLoading = true, // 화면 첫 진입 시 바로 로딩 시작
+    this.areListsLoading = true,
     this.listError,
     this.sentRequests = const [],
     this.receivedRequests = const [],
   });
 
-  // 상태 객체를 불변으로 유지하면서 특정 값만 쉽게 변경하기 위한 메서드
   PartnerLinkingState copyWith({
     bool? isRequesting, String? requestError, bool? requestSuccess,
     bool? areListsLoading, String? listError,
@@ -47,18 +50,16 @@ class PartnerLinkingState {
   }
 }
 
-// 상태(PartnerLinkingState)와 로직을 관리하는 ViewModel
+// ViewModel
 class PartnerLinkingViewModel extends StateNotifier<PartnerLinkingState> {
   final PartnershipRepository _repository;
-  final Ref _ref; // 다른 Provider를 읽어오기 위한 참조
+  final Ref _ref;
 
   PartnerLinkingViewModel(this._repository, this._ref) : super(PartnerLinkingState());
 
-  /// 화면에 필요한 모든 요청 목록(보낸/받은)을 서버에서 불러옵니다.
   Future<void> fetchRequests() async {
     state = state.copyWith(areListsLoading: true, listError: null);
     try {
-      // 두 API를 동시에 호출하여 더 빠르게 데이터를 가져옵니다.
       final results = await Future.wait([
         _repository.getSentRequests(),
         _repository.getReceivedRequests(),
@@ -73,50 +74,54 @@ class PartnerLinkingViewModel extends StateNotifier<PartnerLinkingState> {
     }
   }
 
-  /// 입력받은 아이디로 파트너 요청을 보냅니다.
   Future<void> requestPartnership(String partnerId) async {
     if (state.isRequesting) return;
     state = state.copyWith(isRequesting: true, requestError: null, requestSuccess: false);
     try {
       await _repository.requestPartnership(partnerId: partnerId);
       state = state.copyWith(isRequesting: false, requestSuccess: true);
-      await fetchRequests(); // 요청 성공 후 목록을 새로고침합니다.
+      await fetchRequests();
     } catch (e) {
       state = state.copyWith(isRequesting: false, requestError: e.toString());
     }
   }
 
-  /// 받은 요청을 수락합니다.
+  // ✨ 요청 수락 로직 수정
   Future<void> accept(int id) async {
     await _handleAction(() => _repository.acceptRequest(id));
-    // ★★★ 중요: 파트너 관계가 생성되었으므로, 전역 파트너 상태를 갱신합니다.
-    // 이 코드로 인해 라우터가 리다이렉션을 실행하여 홈 화면으로 이동합니다.
-    _ref.invalidate(partnerStateProvider);
+    showChemiQToast("파트너를 수락했습니다.", type: ToastType.success);
+
+    // ★★★ 중요: 파트너 관계가 생성되었으므로, 관련된 모든 데이터 Provider를 갱신합니다.
+    _ref.invalidate(partnerStateProvider); // 1. 라우터가 반응하도록
+    _ref.invalidate(homeSummaryProvider);   // 2. 홈 화면 데이터가 갱신되도록
+
+    // ✨ 3. 다른 탭의 데이터 Provider들도 무효화하여, 다음에 해당 탭으로 이동했을 때
+    //    최신 정보를 다시 불러오도록 합니다.
+    _ref.invalidate(missionStatusViewModelProvider);
+    _ref.invalidate(timelineViewModelProvider);
+    // _ref.invalidate(myPageViewModelProvider);
   }
 
-  /// 받은 요청을 거절합니다.
+
   Future<void> reject(int id) async {
     await _handleAction(() => _repository.rejectRequest(id));
   }
 
-  /// 보낸 요청을 취소합니다.
   Future<void> cancel(int id) async {
     await _handleAction(() => _repository.cancelRequest(id));
   }
 
-  /// 수락/거절/취소와 같이 반복되는 작업의 공통 로직을 처리하는 메서드
   Future<void> _handleAction(Future<void> Function() action) async {
     try {
       await action();
-      await fetchRequests(); // 액션 성공 후 목록을 항상 새로고침합니다.
+      await fetchRequests();
     } catch (e) {
-      // 에러는 UI의 ref.listen에서 스낵바 등으로 처리하므로, 여기서는 로그만 남깁니다.
       print("요청 처리 실패: $e");
     }
   }
 }
 
-// ViewModel의 인스턴스를 UI에 제공하는 Provider
+// Provider
 final partnerLinkingViewModelProvider =
 StateNotifierProvider.autoDispose<PartnerLinkingViewModel, PartnerLinkingState>((ref) {
   final repository = ref.watch(partnershipRepositoryProvider);

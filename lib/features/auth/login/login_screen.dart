@@ -17,17 +17,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   late final TextEditingController _passwordController;
   bool _isPasswordVisible = false;
 
+  // ✨ 각 TextField의 포커스를 관리하기 위한 FocusNode를 추가합니다.
+  late final FocusNode _idFocusNode;
+  late final FocusNode _passwordFocusNode;
+
   @override
   void initState() {
     super.initState();
     _memberIdController = TextEditingController();
     _passwordController = TextEditingController();
+
+    _idFocusNode = FocusNode();
+    _passwordFocusNode = FocusNode();
   }
 
   @override
   void dispose() {
     _memberIdController.dispose();
     _passwordController.dispose();
+    _idFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -47,11 +56,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
-        // ✨ 레이아웃 구조를 더 단순하고 안정적인 방식으로 변경합니다.
         child: SafeArea(
           child: SingleChildScrollView(
             child: SizedBox(
-              // 화면의 최소 높이를 실제 기기 높이로 설정하여 Column이 수직 정렬될 공간을 확보합니다.
               height: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -60,16 +67,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const Spacer(flex: 2),
                     _buildHeader(context, textTheme),
                     const SizedBox(height: 48),
+                    // ✨ FocusNode를 전달합니다.
                     _buildLoginForm(context, _memberIdController, _passwordController),
                     const SizedBox(height: 24),
                     PrimaryButton(
                       text: '로그인',
                       isLoading: loginState.isLoading,
-                      onPressed: () {
-                        loginViewModel.login(
+                      onPressed: () async {
+                        // 로그인 버튼을 누르면 키보드가 내려가도록 합니다.
+                        _passwordFocusNode.unfocus();
+                        await loginViewModel.login(
                           _memberIdController.text.trim(),
                           _passwordController.text.trim(),
                         );
+                        showChemiQToast("로그인 완료!", type: ToastType.success);
                       },
                     ),
                     const SizedBox(height: 24),
@@ -91,12 +102,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  // ✨ 1. 로고와 슬로건을 표시하는 위젯
   Widget _buildHeader(BuildContext context, TextTheme textTheme) {
     return Column(
       children: [
         const SizedBox(height: 16),
-        // ✨ 로고 이미지를 표시합니다. (assets/images/chemiq_logo_text.png 파일 필요)
         Image.asset(
           'assets/images/chemiq_logo-cr.png',
           height: 100,
@@ -116,7 +125,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  // ✨ 2. 아이디와 비밀번호 입력 폼 위젯
+  // ✨ FocusNode를 사용하여 키보드 동작을 제어합니다.
   Widget _buildLoginForm(
       BuildContext context,
       TextEditingController idController,
@@ -129,18 +138,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         const SizedBox(height: 8),
         TextField(
           controller: idController,
+          focusNode: _idFocusNode,
           decoration: const InputDecoration(
             hintText: '아이디',
+            // ✨ 아이디 필드에 아이콘 추가
+            prefixIcon: Icon(Icons.person_outline),
           ),
+          // 키보드의 '완료' 버튼을 '다음' 버튼으로 변경합니다.
+          textInputAction: TextInputAction.next,
+          // '다음' 버튼을 누르면 비밀번호 필드로 포커스를 이동시킵니다.
+          onEditingComplete: () => _passwordFocusNode.requestFocus(),
         ),
         const SizedBox(height: 16),
         Text('비밀번호', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[700])),
         const SizedBox(height: 8),
         TextField(
           controller: pwController,
+          focusNode: _passwordFocusNode,
           obscureText: !_isPasswordVisible,
           decoration: InputDecoration(
             hintText: '비밀번호',
+            // ✨ 비밀번호 필드에 아이콘 추가
+            prefixIcon: const Icon(Icons.lock_outline),
             suffixIcon: IconButton(
               icon: Icon(
                 _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
@@ -153,13 +172,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               },
             ),
           ),
-
+          // 키보드의 '완료' 버튼을 누르면 키보드를 내립니다.
+          onEditingComplete: () => _passwordFocusNode.unfocus(),
         ),
       ],
     );
   }
 
-  // ✨ 4. 회원가입 페이지로 이동하는 링크 위젯
   Widget _buildSignUpLink(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

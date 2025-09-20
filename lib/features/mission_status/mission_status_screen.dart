@@ -7,8 +7,9 @@ import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:chemiq/data/models/member_info_dto.dart';
 
+// ✨ import 경로를 새로운 ViewModel 파일로 변경합니다.
 import '../../data/models/myPage_response.dart';
-import '../home/home_screen_view_model.dart';
+import 'mission_status_view_model.dart';
 
 class MissionStatusScreen extends ConsumerStatefulWidget {
   const MissionStatusScreen({super.key});
@@ -24,21 +25,21 @@ class _MissionStatusScreenState extends ConsumerState<MissionStatusScreen> with 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshData();
-    });
+    // ✨ initState에서 데이터를 불러오는 대신, 각 Provider가 자동으로 불러오도록 합니다.
   }
 
   Future<void> _refreshData() async {
-    ref.read(homeViewModelProvider.notifier).fetchTodayMission();
-    ref.invalidate(myPageInfoProvider);
+    // ✨ 새로고침 로직을 '미션 현황' 전용 Provider를 사용하도록 수정
+    ref.read(missionStatusViewModelProvider.notifier).fetchTodayMission();
+    ref.invalidate(missionStatusMyPageProvider);
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final missionState = ref.watch(homeViewModelProvider);
-    final myPageState = ref.watch(myPageInfoProvider);
+    // ✨ '미션 현황' 전용 Provider들을 감시합니다.
+    final missionState = ref.watch(missionStatusViewModelProvider);
+    final myPageState = ref.watch(missionStatusMyPageProvider);
 
     return RefreshIndicator(
       onRefresh: _refreshData,
@@ -54,7 +55,7 @@ class _MissionStatusScreenState extends ConsumerState<MissionStatusScreen> with 
     );
   }
 
-  Widget _buildBody(HomeState state, MyPageResponse myPageInfo) {
+  Widget _buildBody(MissionStatusState state, MyPageResponse myPageInfo) {
     if (state.dailyMission == null) {
       return Center(
         child: Padding(
@@ -65,7 +66,7 @@ class _MissionStatusScreenState extends ConsumerState<MissionStatusScreen> with 
               const Icon(Icons.check_circle_outline, size: 60, color: Colors.grey),
               const SizedBox(height: 16),
               const Text(
-                '오늘 할당된 퀘스트가 없어요. 😌',
+                '오늘 할당된 퀘스트가 없어요.',
                 style: TextStyle(fontSize: 16),
                 textAlign: TextAlign.center,
               ),
@@ -116,8 +117,6 @@ class _MissionStatusScreenState extends ConsumerState<MissionStatusScreen> with 
           _buildSubmissionCard(
             context: context,
             isMe: true,
-            // title: '내 기록',
-            // subtitle: '나의 미션 수행 결과',
             submitterInfo: myPageInfo.myInfo,
             submission: mission.mySubmission,
             mission: mission,
@@ -130,8 +129,6 @@ class _MissionStatusScreenState extends ConsumerState<MissionStatusScreen> with 
             _buildSubmissionCard(
               context: context,
               isMe: false,
-              // title: '파트너 기록',
-              // subtitle: '파트너의 미션 수행 결과',
               submitterInfo: myPageInfo.partnerInfo!,
               submission: mission.partnerSubmission,
               mission: mission,
@@ -153,7 +150,8 @@ class _MissionStatusScreenState extends ConsumerState<MissionStatusScreen> with 
         required int evaluationCount,
       }) {
     return Card(
-        elevation:0,
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.08),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
         child: Padding(
@@ -246,8 +244,8 @@ class _MissionStatusScreenState extends ConsumerState<MissionStatusScreen> with 
     final String title = isMe ? '내 기록' : '파트너 기록';
     final String subtitle = isMe ? '나의 퀘스트 수행 결과' : '파트너의 퀘스트 수행 결과';
     return Card(
-      // elevation: 2,
-      elevation: 0,
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.08),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -405,42 +403,72 @@ class _MissionStatusScreenState extends ConsumerState<MissionStatusScreen> with 
     return Shimmer.fromColors(
       baseColor: Colors.grey.shade300,
       highlightColor: Colors.grey.shade100,
-      child: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          _buildShimmerCard(),
-          const SizedBox(height: 24),
-          _buildShimmerCard(),
-        ],
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Column(
+          children: [
+            // Shimmer for _buildMissionHeader
+            Container(
+              height: 180, // Adjust height to match the header content
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Shimmer for the first _buildSubmissionCard
+            _buildShimmerSubmissionCard(),
+            const SizedBox(height: 24),
+            // Shimmer for the second _buildSubmissionCard
+            _buildShimmerSubmissionCard(),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildShimmerCard() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const CircleAvatar(radius: 20),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(width: 80, height: 16, color: Colors.white),
-                const SizedBox(height: 4),
-                Container(width: 120, height: 12, color: Colors.white),
-              ],
-            )
-          ],
-        ),
-        const SizedBox(height: 12),
-        Card(
-        elevation : 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: AspectRatio(aspectRatio: 4/3, child: Container(color: Colors.white)),
-        )
-      ],
+  Widget _buildShimmerSubmissionCard() {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const CircleAvatar(
+                radius: 20,
+                backgroundColor: Colors.white,
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(width: 80, height: 16, color: Colors.grey.shade100),
+                  const SizedBox(height: 4),
+                  Container(width: 120, height: 12, color: Colors.grey.shade100),
+                ],
+              )
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Shimmer for the image
+          Container(
+            height: 200,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Shimmer for the text
+          Container(width: double.infinity, height: 16, color: Colors.grey.shade100),
+        ],
+      ),
     );
   }
 }

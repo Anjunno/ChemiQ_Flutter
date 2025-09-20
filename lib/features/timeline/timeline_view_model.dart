@@ -3,6 +3,9 @@ import 'package:chemiq/data/repositories/mission_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/dailyMission_response.dart';
+import '../../data/models/myPage_response.dart';
+import '../../data/repositories/member_repository.dart';
+import '../auth/provider/auth_state_provider.dart';
 
 // ✨ 상태 클래스가 DailyMissionResponse를 사용하도록 수정합니다.
 class TimelineState {
@@ -87,3 +90,12 @@ StateNotifierProvider.autoDispose<TimelineViewModel, TimelineState>((ref) {
   return TimelineViewModel(missionRepository);
 });
 
+final timelineMyPageProvider = FutureProvider.autoDispose<MyPageResponse>((ref) {
+  final authState = ref.watch(authStateProvider);
+  if (authState == AuthState.authenticated) {
+    final memberRepository = ref.watch(memberRepositoryProvider);
+    return memberRepository.getMyPageInfo();
+  } else {
+    throw Exception('Not authenticated');
+  }
+});

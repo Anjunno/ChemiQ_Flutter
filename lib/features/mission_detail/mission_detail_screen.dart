@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 import 'mission_detail_view_model.dart';
 
 class MissionDetailScreen extends ConsumerWidget {
@@ -52,7 +53,7 @@ class MissionDetailScreen extends ConsumerWidget {
   Widget _buildHeaderImage(BuildContext context, SubmissionDetailDto submission, String missionTitle) {
     return Card(
       elevation: 4,
-      shadowColor: Colors.black.withOpacity(0.2),
+      shadowColor: Colors.black.withOpacity(0.08),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       clipBehavior: Clip.antiAlias,
       child: GestureDetector(
@@ -127,7 +128,8 @@ class MissionDetailScreen extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Card(
-      elevation: 2,
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.08),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -156,7 +158,8 @@ class MissionDetailScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             if (state.isLoading)
-              const Center(child: CircularProgressIndicator())
+            // ✨ Shimmer for evaluation section
+              _buildEvaluationShimmer()
             else if (state.error != null)
               Center(child: Text(state.error!, style: const TextStyle(color: Colors.red)))
             else if (state.evaluation == null)
@@ -164,6 +167,60 @@ class MissionDetailScreen extends ConsumerWidget {
               else
                 _buildEvaluationCard(context, state.evaluation!),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ✨ Added a new shimmer method for the evaluation card
+  Widget _buildEvaluationShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Card(
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.08),
+        color: Colors.white, // Shimmer color
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const CircleAvatar(radius: 18, backgroundColor: Colors.white),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(width: 80, height: 16, color: Colors.white),
+                      const SizedBox(height: 4),
+                      Container(width: 120, height: 12, color: Colors.white),
+                    ],
+                  ),
+                  const Spacer(),
+                  Container(width: 80, height: 16, color: Colors.white),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                    border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1))
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(width: double.infinity, height: 16, color: Colors.white),
+                    const SizedBox(height: 8),
+                    Container(width: 150, height: 16, color: Colors.white),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -239,4 +296,3 @@ class MissionDetailScreen extends ConsumerWidget {
     );
   }
 }
-

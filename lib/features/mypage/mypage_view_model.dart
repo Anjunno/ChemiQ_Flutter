@@ -1,26 +1,29 @@
-
+import 'dart:typed_data';
 import 'package:chemiq/data/repositories/member_repository.dart';
 import 'package:chemiq/data/repositories/partnership_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/models/myPage_response.dart';
+import '../auth/provider/home_screen_data_provider.dart';
 import '../auth/provider/partner_state_provider.dart';
+import '../home/home_screen_view_model.dart';
+import '../mission_status/mission_status_view_model.dart';
+import '../timeline/timeline_view_model.dart';
 
-// 마이페이지의 상태를 정의하는 클래스
 class MyPageState {
   final bool isLoading;
   final MyPageResponse? myPageInfo;
   final String? error;
   final bool isImageUploading;
-  final String? profileImageError; // ✨ 프로필 이미지 업로드 실패 시 에러 메시지
+  final String? profileImageError;
 
   MyPageState({
     this.isLoading = true,
     this.myPageInfo,
     this.error,
     this.isImageUploading = false,
-    this.profileImageError, // ✨ 생성자에 추가
+    this.profileImageError,
   });
 
   MyPageState copyWith({
@@ -28,7 +31,7 @@ class MyPageState {
     MyPageResponse? myPageInfo,
     String? error,
     bool? isImageUploading,
-    String? profileImageError, // ✨ copyWith에 추가
+    String? profileImageError,
   }) {
     return MyPageState(
       isLoading: isLoading ?? this.isLoading,
@@ -40,7 +43,7 @@ class MyPageState {
   }
 }
 
-// 상태(MyPageState)와 로직을 관리하는 ViewModel
+// ViewModel
 class MyPageViewModel extends StateNotifier<MyPageState> {
   final MemberRepository _memberRepository;
   final PartnershipRepository _partnershipRepository;
@@ -60,7 +63,6 @@ class MyPageViewModel extends StateNotifier<MyPageState> {
     }
   }
 
-  /// 프로필 사진 업데이트 로직
   Future<void> updateProfileImage() async {
     state = state.copyWith(isImageUploading: true, profileImageError: null);
     try {
@@ -73,11 +75,7 @@ class MyPageViewModel extends StateNotifier<MyPageState> {
 
       final presignedUrlResponse = await _memberRepository.getProfileImageUploadUrl(image.name);
       await _memberRepository.uploadImageToS3(presignedUrlResponse.presignedUrl, imageData);
-
-      // fileKey: 라는 이름표를 추가합니다.
-      await _memberRepository.updateProfileImage(
-        fileKey: presignedUrlResponse.fileKey,
-      );
+      await _memberRepository.updateProfileImage(fileKey: presignedUrlResponse.fileKey);
 
       await fetchMyPageInfo();
     } catch (e) {
@@ -87,13 +85,18 @@ class MyPageViewModel extends StateNotifier<MyPageState> {
     }
   }
 
+  /// 파트너 관계를 해제하고 관련된 데이터 소스를 갱신합니다.
   Future<void> breakUp() async {
-    try {
-      await _partnershipRepository.deletePartnership();
-      _ref.invalidate(partnerStateProvider);
-    } catch (e) {
-      rethrow;
-    }
+    await _partnershipRepository.deletePartnership();
+
+    // 성공 시, 관련된 Provider들을 모두 무효화하여 앱 전체에 상태 변경을 알립니다.
+    _ref.invalidate(partnerStateProvider); // 1. 라우터가 반응하도록
+    _ref.invalidate(homeSummaryProvider);   // 2. 홈 화면 데이터 갱신
+    _ref.invalidate(missionStatusViewModelProvider); // 3. 미션 현황 데이터 갱신
+    _ref.invalidate(timelineViewModelProvider);    // 4. 타임라인 데이터 갱신
+
+    // 5. 현재 보고 있는 마이페이지 화면의 데이터를 다시 불러와 즉시 갱신
+    await fetchMyPageInfo();
   }
 }
 
@@ -104,4 +107,3 @@ StateNotifierProvider.autoDispose<MyPageViewModel, MyPageState>((ref) {
   final partnershipRepository = ref.watch(partnershipRepositoryProvider);
   return MyPageViewModel(memberRepository, partnershipRepository, ref);
 });
-

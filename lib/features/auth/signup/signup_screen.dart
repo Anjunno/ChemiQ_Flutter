@@ -19,9 +19,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _pwConfirmController = TextEditingController();
   final _nicknameController = TextEditingController();
 
-  // ✨ 비밀번호 가시성 상태 변수 추가
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+
+  // ✨ 각 TextField의 포커스를 관리하기 위한 FocusNode 추가
+  final _idFocus = FocusNode();
+  final _pwFocus = FocusNode();
+  final _pwConfirmFocus = FocusNode();
+  final _nicknameFocus = FocusNode();
 
   @override
   void initState() {
@@ -39,6 +44,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     _pwController.dispose();
     _pwConfirmController.dispose();
     _nicknameController.dispose();
+    // ✨ FocusNode도 dispose 처리
+    _idFocus.dispose();
+    _pwFocus.dispose();
+    _pwConfirmFocus.dispose();
+    _nicknameFocus.dispose();
     super.dispose();
   }
 
@@ -72,63 +82,66 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               // 아이디 필드
               _buildTextField(
                 controller: _idController,
+                focusNode: _idFocus,
                 label: '아이디',
-                hintText: '아이디', // ✨ 힌트 텍스트 추가
+                hintText: '아이디',
+                prefixIcon: const Icon(Icons.person_outline),
                 helperWidget: _buildIdHelperText(state),
                 maxLength: 12,
+                textInputAction: TextInputAction.next,
+                onEditingComplete: () => _pwFocus.requestFocus(),
               ),
               const SizedBox(height: 24),
               // 비밀번호 필드
               _buildTextField(
                 controller: _pwController,
+                focusNode: _pwFocus,
                 label: '비밀번호',
-                hintText: '비밀번호', // ✨ 힌트 텍스트 추가
-                obscureText: !_isPasswordVisible, // ✨ 가시성 상태에 따라 변경
+                hintText: '비밀번호',
+                prefixIcon: const Icon(Icons.lock_outline),
+                obscureText: !_isPasswordVisible,
                 helperWidget: _buildPasswordRequirements(state.passwordRequirements),
                 maxLength: 12,
-                // ✨ 가시성 토글 아이콘 버튼 추가
+                textInputAction: TextInputAction.next,
+                onEditingComplete: () => _pwConfirmFocus.requestFocus(),
                 suffixIcon: IconButton(
-                  icon: Icon(
-                    _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                    color: Colors.grey,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isPasswordVisible = !_isPasswordVisible;
-                    });
-                  },
+                  icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.grey),
+                  onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                 ),
               ),
               const SizedBox(height: 24),
               // 비밀번호 확인 필드
               _buildTextField(
                 controller: _pwConfirmController,
+                focusNode: _pwConfirmFocus,
                 label: '비밀번호 확인',
-                hintText: '비밀번호 확인', // ✨ 힌트 텍스트 추가
-                obscureText: !_isConfirmPasswordVisible, // ✨ 가시성 상태에 따라 변경
+                hintText: '비밀번호 확인',
+                prefixIcon: const Icon(Icons.lock_outline),
+                obscureText: !_isConfirmPasswordVisible,
                 helperWidget: _buildConfirmPasswordHelperText(state),
                 maxLength: 12,
-                // ✨ 가시성 토글 아이콘 버튼 추가
+                textInputAction: TextInputAction.next,
+                onEditingComplete: () => _nicknameFocus.requestFocus(),
                 suffixIcon: IconButton(
-                  icon: Icon(
-                    _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                    color: Colors.grey,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
-                    });
-                  },
+                  icon: Icon(_isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.grey),
+                  onPressed: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
                 ),
               ),
               const SizedBox(height: 24),
               // 닉네임 필드
               _buildTextField(
                 controller: _nicknameController,
+                focusNode: _nicknameFocus,
                 label: '닉네임',
-                hintText: '닉네임', // ✨ 힌트 텍스트 추가
+                hintText: '닉네임',
+                prefixIcon: const Icon(Icons.badge_outlined),
                 helperWidget: _buildNicknameHelperText(state),
                 maxLength: 6,
+                textInputAction: TextInputAction.done,
+                onEditingComplete: () {
+                  _nicknameFocus.unfocus();
+                  if (state.isFormValid) viewModel.signUp();
+                },
               ),
               const SizedBox(height: 40),
               // 가입하기 버튼
@@ -145,7 +158,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     );
   }
 
-  // ✨ 로그인 화면과 유사한 헤더 위젯
   Widget _buildHeader(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return Column(
@@ -170,15 +182,19 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     );
   }
 
-  // ✨ 공통 TextField 위젯에 hintText와 suffixIcon 파라미터 추가
+  // ✨ FocusNode, textInputAction, onEditingComplete, prefixIcon 파라미터 추가
   Widget _buildTextField({
     required TextEditingController controller,
+    required FocusNode focusNode,
     required String label,
     String? hintText,
     bool obscureText = false,
     required Widget helperWidget,
     int? maxLength,
+    Widget? prefixIcon,
     Widget? suffixIcon,
+    TextInputAction? textInputAction,
+    VoidCallback? onEditingComplete,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,14 +203,18 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         const SizedBox(height: 8),
         TextField(
           controller: controller,
+          focusNode: focusNode,
           obscureText: obscureText,
           maxLength: maxLength,
+          textInputAction: textInputAction,
+          onEditingComplete: onEditingComplete,
           decoration: InputDecoration(
-            hintText: hintText, // ✨ 힌트 텍스트 설정
+            hintText: hintText,
             helperStyle: const TextStyle(height: 0),
             errorStyle: const TextStyle(height: 0),
             counterText: "",
-            suffixIcon: suffixIcon, // ✨ 아이콘 위젯 설정
+            prefixIcon: prefixIcon,
+            suffixIcon: suffixIcon,
           ),
         ),
         const SizedBox(height: 6),

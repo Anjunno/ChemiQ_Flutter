@@ -107,7 +107,7 @@ class _PartnerLinkingScreenState extends ConsumerState<PartnerLinkingScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            '파트너의 아이디를 입력해서 함께 퀘스트를 시작해보세요!',
+            '파트너의 아이디를 입력해서\n함께 퀘스트를 시작해보세요!',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
           ),
@@ -285,7 +285,7 @@ class _PartnerLinkingScreenState extends ConsumerState<PartnerLinkingScreen> {
               child: ListTile(
                 leading: const CircleAvatar(child: Icon(Icons.person)), // 프로필 사진
                 title: Text('${request.addresseeNickname}'),
-                subtitle: const Text('요청을 보냈어요'),
+                subtitle: const Text('님의 요청'),
                 trailing: request.status == 'PENDING'
                     ? TextButton(
                   onPressed: () => viewModel.cancel(request.partnershipId),

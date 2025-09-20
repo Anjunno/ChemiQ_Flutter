@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/ui/widgets/showConfirmation_dialog.dart';
+import '../../data/models/home_partner_info_dto.dart';
+import '../../data/models/home_summary_dto.dart';
 import '../../data/models/myPage_response.dart';
 import '../../data/models/weekly_status_dto.dart';
 import 'home_screen_view_model.dart';
@@ -20,33 +22,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
   @override
   bool get wantKeepAlive => true;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshData();
-    });
-  }
-
   Future<void> _refreshData() async {
-    ref.read(homeViewModelProvider.notifier).fetchTodayMission();
-    ref.invalidate(myPageInfoProvider);
-    ref.invalidate(weeklyStatusProvider);
+    // ✨ 새로고침 시 통합 Provider 하나만 무효화합니다.
+    ref.invalidate(homeSummaryProvider);
   }
-
-
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final missionState = ref.watch(homeViewModelProvider);
-    final myPageState = ref.watch(myPageInfoProvider);
-    // ✨ 주간 현황 데이터를 감시합니다.
-    final weeklyStatusState = ref.watch(weeklyStatusProvider);
+    // ✨ 이제 단 하나의 통합 Provider만 감시합니다.
+    final homeDataState = ref.watch(homeSummaryProvider);
 
-    ref.listen<AsyncValue<MyPageResponse>>(myPageInfoProvider, (previous, next) {
-      final wasLoading = previous == null || previous.isLoading;
-      if (wasLoading && next.hasValue && next.value?.partnerInfo == null) {
+    ref.listen<AsyncValue<HomeSummaryDto>>(homeSummaryProvider, (previous, next) {
+      if (!next.isLoading && next.hasValue && next.value?.partnerInfo == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             showActionDialog(
@@ -63,51 +51,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
 
     return RefreshIndicator(
       onRefresh: _refreshData,
-      child: myPageState.when(
+      child: homeDataState.when(
         loading: () => _buildLoadingShimmer(),
-        error: (err, stack) => Center(child: Text('오류가 발생했습니다: $err')),
-        data: (myPageInfo) {
-          if (missionState.isLoading && myPageInfo == null) {
-            return _buildLoadingShimmer();
-          }
-          if (missionState.error != null) {
-            return Center(child: Text(missionState.error!));
-          }
-          return _buildBody(missionState, myPageInfo, weeklyStatusState);
-        },
+        error: (err, stack) => Center(child: Text('데이터를 불러오지 못했습니다.\n아래로 당겨 새로고침 해주세요.')),
+        data: (data) => _buildBody(data),
       ),
     );
   }
 
-  // ✨ weeklyStatusState를 파라미터로 받도록 수정
-  Widget _buildBody(HomeState missionState, MyPageResponse? myPageInfo, AsyncValue<WeeklyMissionStatusResponse> weeklyStatusState) {
-    final mission = missionState.dailyMission;
+  // ✨ weeklyStatusState의 타입을 nullable(?)로 수정합니다.
+  Widget _buildBody(HomeSummaryDto data) {
+    final mission = data.dailyMission;
+    final partnerInfo = data.partnerInfo;
+    final weeklyStatus = data.weeklyStatus;
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
       child: Column(
         children: [
-          if (myPageInfo != null) _buildPartnerInfoCard(myPageInfo),
+          if (partnerInfo != null) _buildPartnerInfoCard(partnerInfo),
           const SizedBox(height: 20),
           _buildTodayMissionCard(mission, context),
           const SizedBox(height: 20),
-
-
-          if (mission != null) _buildProgressCard(missionState),
+          if (mission != null) _buildProgressCard(mission),
           const SizedBox(height: 20),
-          // ✨ 주간 미션 트래커 카드를 여기에 추가합니다.
-          weeklyStatusState.when(
-            data: (statuses) => _buildWeeklyTrackerCard(statuses),
-            loading: () => const SizedBox.shrink(), // 로딩 중에는 잠시 숨김
-            error: (e, s) => const SizedBox.shrink(), // 에러 시에도 숨김
-          ),
+          if (weeklyStatus != null) _buildWeeklyTrackerCard(weeklyStatus),
         ],
       ),
     );
   }
 
-  // ✨ 주간 미션 트래커 카드 위젯
   Widget _buildWeeklyTrackerCard(WeeklyMissionStatusResponse weeklyStatus) {
     const List<String> daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
     final Map<String, String> dayLabels = {
@@ -115,8 +89,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     };
 
     return Card(
-      // elevation: 2,
-      elevation: 0,
+      // elevation: 0,
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.08),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -182,13 +157,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     );
   }
 
-  Widget _buildPartnerInfoCard(MyPageResponse myPageInfo) {
-    // 파트너 정보가 있을 때만 이 카드를 보여줍니다.
-    if (myPageInfo.partnerInfo == null) {
-      return const SizedBox.shrink(); // 파트너 없으면 아무것도 안보여줌
-    }
+  Widget _buildPartnerInfoCard(HomePartnerInfoDto partnerInfo) {
     return Card(
-      // elevation: 2,
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -197,46 +167,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
           children: [
             CircleAvatar(
               radius: 28,
-              backgroundImage: myPageInfo.partnerInfo!.profileImageUrl != null
-                  ? CachedNetworkImageProvider(myPageInfo.partnerInfo!.profileImageUrl!)
+              backgroundImage: partnerInfo.profileImageUrl != null
+                  ? CachedNetworkImageProvider(partnerInfo.profileImageUrl!)
                   : null,
-              child: myPageInfo.partnerInfo!.profileImageUrl == null ? const Icon(Icons.person, size: 28) : null,
+              child: partnerInfo.profileImageUrl == null ? const Icon(Icons.person, size: 28) : null,
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  RichText(
-                    text: TextSpan(
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      children: [
-                        TextSpan(
-                          text: myPageInfo.partnerInfo!.nickname,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const TextSpan(text: '님과'),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    '함께하는 중',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
+              child: RichText(
+                text: TextSpan(
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  children: [
+                    TextSpan(text: partnerInfo.nickname, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const TextSpan(text: '님과\n함께하는 중'),
+                  ],
+                ),
               ),
             ),
             _buildInfoItem(
               icon: Icons.local_fire_department_rounded,
-              iconColor: Colors.red.shade200,
-              value: '${myPageInfo.partnershipInfo?.streakCount ?? 0}일',
+              iconColor: Colors.red.shade400,
+              value: '${partnerInfo.streakCount}일',
               label: '스트릭',
             ),
             const SizedBox(width: 20),
             _buildInfoItem(
               icon: Icons.star_rounded,
-              iconColor: Colors.green.shade200,
-              value: '${myPageInfo.partnershipInfo?.chemiScore.toInt() ?? 0}%',
+              iconColor: Colors.green.shade400,
+              value: '${partnerInfo.chemiScore.toStringAsFixed(1)}%',
               label: '케미 지수',
             ),
           ],
@@ -271,7 +229,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
               ),
               const SizedBox(height: 8),
               Text(
-                mission?.missionTitle ?? '파트너를 연결하고 퀘스트를 받아보세요!',
+                mission?.missionTitle ?? '파트너를 연결하고\n퀘스트를 받아보세요!',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
@@ -306,26 +264,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     );
   }
 
-  // ✨ '오늘의 진행 상황'을 보여주는 새로운 카드 위젯
-  Widget _buildProgressCard(HomeState missionState) {
-    if (missionState.dailyMission == null) return const SizedBox.shrink();
-
-    final mission = missionState.dailyMission!;
+  Widget _buildProgressCard(dynamic mission) {
     final bool iSubmitted = mission.mySubmission != null;
     final bool partnerSubmitted = mission.partnerSubmission != null;
     final bool iEvaluated = partnerSubmitted && mission.partnerSubmission!.score != null;
     final bool partnerEvaluated = iSubmitted && mission.mySubmission!.score != null;
 
     return Card(
-      elevation: 0,
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.08),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      // color: Colors.blue.shade50,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('오늘의 진행 상황', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold,)),
+            Text('오늘 진행상황', style:Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold,)),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -348,7 +302,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     );
   }
 
-  // ✨ 진행 상황의 각 항목을 보여주는 위젯
   Widget _buildProgressItem({required IconData icon, required String label, required bool isDone}) {
     final color = isDone ? Theme.of(context).colorScheme.secondary : Colors.grey.shade400;
     return Row(
@@ -398,15 +351,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     return Shimmer.fromColors(
       baseColor: Colors.grey.shade300,
       highlightColor: Colors.grey.shade100,
-      child: ListView(
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-        children: [
-          Card(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: const SizedBox(height: 70)),
-          const SizedBox(height: 20),
-          Card(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)), child: const SizedBox(height: 250)),
-          const SizedBox(height: 20),
-          Card(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: const SizedBox(height: 90)),
-        ],
+        child: Column(
+          children: [
+            // Shimmer for _buildPartnerInfoCard
+            Container(
+              height: 70,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Shimmer for _buildTodayMissionCard
+            Container(
+              height: 250,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Shimmer for _buildProgressCard
+            Container(
+              height: 140, // Adjusted height to better fit the content
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Shimmer for _buildWeeklyTrackerCard
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

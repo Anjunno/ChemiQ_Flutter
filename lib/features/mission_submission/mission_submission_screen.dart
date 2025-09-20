@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../home/home_screen_view_model.dart';
+import '../mission_status/mission_status_view_model.dart';
+import '../timeline/timeline_view_model.dart';
 import 'mission_submission_view_model.dart';
 
 class MissionSubmissionScreen extends ConsumerStatefulWidget {
@@ -74,11 +76,20 @@ class _MissionSubmissionScreenState extends ConsumerState<MissionSubmissionScree
     final viewModel = ref.read(missionSubmissionViewModelProvider.notifier);
     final textTheme = Theme.of(context).textTheme;
 
+    // ✨ ViewModel의 상태 변화를 감지하여, 관련된 모든 Provider를 새로고침합니다.
     ref.listen(missionSubmissionViewModelProvider, (previous, next) {
       if (next.status == SubmissionStatus.success) {
         showChemiQToast('퀘스트 기록 완료!', type: ToastType.success);
-        ref.read(homeViewModelProvider.notifier).fetchTodayMission();
-        context.pop();
+
+        // 1. 홈 화면의 통합 데이터를 새로고침합니다.
+        ref.invalidate(homeSummaryProvider);
+        // 2. 미션 현황 탭의 데이터를 새로고침합니다.
+        ref.invalidate(missionStatusViewModelProvider);
+        ref.invalidate(missionStatusMyPageProvider);
+        // 3. 타임라인 탭의 데이터를 새로고침합니다.
+        ref.invalidate(timelineViewModelProvider);
+
+        context.pop(); // 이전 화면으로 돌아갑니다.
       }
       if (next.status == SubmissionStatus.error && next.errorMessage != null) {
         showChemiQToast(next.errorMessage!, type: ToastType.error);
@@ -126,7 +137,6 @@ class _MissionSubmissionScreenState extends ConsumerState<MissionSubmissionScree
               PrimaryButton(
                 text: '기록하기',
                 isLoading: state.status == SubmissionStatus.loading,
-                // ✨ isFormValid 상태에 따라 버튼의 onPressed를 null 또는 함수로 설정합니다.
                 onPressed: state.isFormValid
                     ? () {
                   viewModel.submitMission(
