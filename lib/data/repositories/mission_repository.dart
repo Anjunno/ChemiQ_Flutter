@@ -3,6 +3,8 @@ import 'package:chemiq/core/dio/dio_client.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:typed_data';
+
+import '../../core/utils/logger.dart';
 import '../models/PresignedUrl_response.dart';
 import '../models/dailyMission_response.dart';
 import '../models/evaluation_detail_dto.dart';
@@ -18,46 +20,59 @@ class MissionRepository {
   MissionRepository({required DioClient dioClient}) : _dioClient = dioClient;
 
   /// 오늘의 미션 현황을 조회합니다.
-  /// 성공 시 DailyMissionResponse 객체를, 미션이 없으면(404) null을 반환합니다.
   Future<DailyMissionResponse?> getTodayMission() async {
     try {
       final response = await _dioClient.dio.get('/timeline/today');
+      logInfo('오늘의 미션 조회 성공');
       return DailyMissionResponse.fromJson(response.data);
     } on DioException catch (e) {
-      // API 명세에 따라, 할당된 미션이 없으면 404 Not Found 에러가 발생합니다.
       if (e.response?.statusCode == 404) {
-        // 미션이 없는 것은 에러가 아닌 정상적인 상황이므로 null을 반환합니다.
+        logDebug('오늘의 미션 없음 (404)');
         return null;
       }
-      // 그 외 다른 에러는 상위 레이어에서 처리하도록 다시 던집니다.
+      logError('오늘의 미션 조회 실패: $e');
+      rethrow;
+    } catch (e) {
+      logError('오늘의 미션 조회 중 알 수 없는 에러: $e');
       rethrow;
     }
   }
 
   /// 1단계: 사진 업로드용 Pre-signed URL 요청
   Future<PresignedUrlResponse> getPresignedUrl(String filename) async {
-    final requestDto = PresignedUrlRequest(filename: filename);
-    final response = await _dioClient.dio.post(
-      '/submissions/presigned-url',
-      data: requestDto.toJson(),
-    );
-    return PresignedUrlResponse.fromJson(response.data);
+    try {
+      final requestDto = PresignedUrlRequest(filename: filename);
+      final response = await _dioClient.dio.post(
+        '/submissions/presigned-url',
+        data: requestDto.toJson(),
+      );
+      logInfo('프리사인드 URL 요청 성공: $filename');
+      return PresignedUrlResponse.fromJson(response.data);
+    } catch (e) {
+      logError('프리사인드 URL 요청 실패: $e');
+      rethrow;
+    }
   }
 
   /// (외부) S3에 실제 이미지 파일 업로드
   Future<void> uploadImageToS3(String presignedUrl, Uint8List imageData) async {
-    // S3 업로드 시에는 우리 서버의 인터셉터가 필요 없으므로, 깨끗한 Dio 인스턴스를 사용합니다.
-    final s3Dio = Dio();
-    await s3Dio.put(
-      presignedUrl,
-      data: Stream.fromIterable(imageData.map((e) => [e])), // Uint8List를 Stream으로 변환
-      options: Options(
-        headers: {
-          Headers.contentLengthHeader: imageData.length, // S3 업로드 시 Content-Length는 필수
-          'Content-Type': 'image/jpeg', // 이미지 타입에 맞게 설정 (예: image/png)
-        },
-      ),
-    );
+    try {
+      final s3Dio = Dio();
+      await s3Dio.put(
+        presignedUrl,
+        data: Stream.fromIterable(imageData.map((e) => [e])),
+        options: Options(
+          headers: {
+            Headers.contentLengthHeader: imageData.length,
+            'Content-Type': 'image/jpeg',
+          },
+        ),
+      );
+      logInfo('S3 이미지 업로드 성공');
+    } catch (e) {
+      logError('S3 이미지 업로드 실패: $e');
+      rethrow;
+    }
   }
 
   /// 2단계: 미션 제출 최종 보고
@@ -66,15 +81,21 @@ class MissionRepository {
     required String content,
     required String fileKey,
   }) async {
-    final requestDto = SubmissionCreateRequest(
-      dailyMissionId: dailyMissionId,
-      content: content,
-      fileKey: fileKey,
-    );
-    await _dioClient.dio.post(
-      '/submissions',
-      data: requestDto.toJson(),
-    );
+    try {
+      final requestDto = SubmissionCreateRequest(
+        dailyMissionId: dailyMissionId,
+        content: content,
+        fileKey: fileKey,
+      );
+      await _dioClient.dio.post(
+        '/submissions',
+        data: requestDto.toJson(),
+      );
+      logInfo('미션 제출 성공 (dailyMissionId: $dailyMissionId)');
+    } catch (e) {
+      logError('미션 제출 실패: $e');
+      throw '미션 제출에 실패했습니다. 잠시 후 다시 시도해주세요.';
+    }
   }
 
   /// 파트너의 미션 제출물을 평가합니다.
@@ -89,8 +110,8 @@ class MissionRepository {
         '/submissions/$submissionId/evaluations',
         data: requestDto.toJson(),
       );
+      logInfo('제출물 평가 성공 (submissionId: $submissionId)');
     } on DioException catch (e) {
-      // API 명세에 따른 에러를 사용자 친화적인 메시지로 변환합니다.
       if (e.response?.statusCode == 403) {
         throw '자신의 제출물이거나 평가할 권한이 없어요.';
       }
@@ -100,11 +121,15 @@ class MissionRepository {
       if (e.response?.statusCode == 400) {
         throw '점수 범위(0~5) 또는 코멘트 길이를 확인해주세요.';
       }
+      logError('제출물 평가 실패: $e');
       throw '평가 제출에 실패했어요. 잠시 후 다시 시도해주세요.';
+    } catch (e) {
+      logError('제출물 평가 중 알 수 없는 에러: $e');
+      rethrow;
     }
   }
 
-  ///과거 미션 기록을 페이징하여 조회합니다.
+  /// 과거 미션 기록을 페이징하여 조회합니다.
   Future<List<DailyMissionResponse>> getTimeline({
     required int page,
     int size = 10,
@@ -115,47 +140,47 @@ class MissionRepository {
         queryParameters: {'page': page, 'size': size},
       );
       final List<dynamic> content = response.data['content'];
-      // ✨ 반환 타입을 DailyMissionResponse로 변경합니다.
+      logInfo('타임라인 조회 성공 (page: $page)');
       return content.map((item) => DailyMissionResponse.fromJson(item)).toList();
     } catch (e) {
-      print('타임라인 조회 실패: $e');
+      logError('타임라인 조회 실패: $e');
       throw '과거 기록을 불러오는 데 실패했어요.';
     }
   }
 
   /// 특정 제출물에 대한 파트너의 평가 정보를 조회합니다.
-  /// 평가가 있으면 EvaluationDetailDto 객체를, 없으면(404) null을 반환합니다.
   Future<EvaluationDetailDto?> getEvaluationForSubmission(int submissionId) async {
     try {
-      // 백엔드 API 경로에 맞춰 수정
       final response = await _dioClient.dio.get('/submissions/$submissionId/evaluation');
+      logInfo('평가 정보 조회 성공 (submissionId: $submissionId)');
       return EvaluationDetailDto.fromJson(response.data);
     } on DioException catch (e) {
-      // API 명세에 따라, 평가가 아직 없으면 404 에러가 발생합니다.
       if (e.response?.statusCode == 404) {
-        return null; // 평가가 없는 것은 정상 상황이므로 null 반환
+        logDebug('평가 정보 없음 (submissionId: $submissionId)');
+        return null;
       }
-      print('평가 정보 조회 실패: $e');
+      logError('평가 정보 조회 실패: $e');
       throw '평가 정보를 불러오는 데 실패했어요.';
+    } catch (e) {
+      logError('평가 정보 조회 중 알 수 없는 에러: $e');
+      rethrow;
     }
   }
 
-  // 주간 미션 현황을 WeeklyMissionStatusResponse 객체로 조회합니다.
+  /// 주간 미션 현황 조회
   Future<WeeklyMissionStatusResponse> getWeeklyStatus() async {
     try {
       final response = await _dioClient.dio.get('/missions/weekly-status');
+      logInfo('주간 미션 현황 조회 성공');
       return WeeklyMissionStatusResponse.fromJson(response.data);
     } catch (e) {
-      print('주간 현황 조회 실패: $e');
+      logError('주간 미션 현황 조회 실패: $e');
       throw '주간 현황을 불러오는 데 실패했어요.';
     }
   }
 }
 
-
-
-// MissionRepository의 인스턴스를 제공하는 Provider입니다.
+// MissionRepository의 인스턴스를 제공하는 Provider
 final missionRepositoryProvider = Provider<MissionRepository>((ref) {
-  // get_it을 통해 DioClient를 주입받아 MissionRepository를 생성합니다.
   return MissionRepository(dioClient: serviceLocator<DioClient>());
 });

@@ -67,7 +67,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const Spacer(flex: 2),
                     _buildHeader(context, textTheme),
                     const SizedBox(height: 48),
-                    // ✨ FocusNode를 전달합니다.
+                    // FocusNode를 전달합니다.
                     _buildLoginForm(context, _memberIdController, _passwordController),
                     const SizedBox(height: 24),
                     PrimaryButton(
@@ -80,7 +80,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           _memberIdController.text.trim(),
                           _passwordController.text.trim(),
                         );
-                        showChemiQToast("로그인 완료!", type: ToastType.success);
+
                       },
                     ),
                     const SizedBox(height: 24),
@@ -107,9 +107,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       children: [
         const SizedBox(height: 16),
         Image.asset(
-          'assets/images/chemiq_logo-cr.png',
+          'assets/images/chemiQQ_clear.png',
           height: 100,
-          color: Theme.of(context).colorScheme.primary,
+          // color: Theme.of(context).colorScheme.primary,
         ),
         const SizedBox(height: 12),
         Text(

@@ -1,4 +1,4 @@
-package com.example.chemiq
+package com.anjunno.chemiq
 
 import io.flutter.embedding.android.FlutterActivity
 

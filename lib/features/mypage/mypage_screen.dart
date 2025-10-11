@@ -423,9 +423,9 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> with AutomaticKeepA
             _buildMenuListItem(icon: Icons.favorite_border, title: '파트너 연결하기', subtitle: '파트너를 찾아 연결해보세요', onTap: () => context.push('/partner_linking')),
           ],
           const Divider(height: 1, indent: 16, endIndent: 16),
-          _buildMenuListItem(icon: Icons.help_outline, title: '도움말', subtitle: 'ChemiQ 사용법 및 FAQ', onTap: () {}),
+          _buildMenuListItem(icon: Icons.help_outline, title: '도움말', subtitle: 'ChemiQ 사용법 및 FAQ', onTap: () {showChemiQToast("준비 중인 서비스입니다.", type: ToastType.success);}),
           const Divider(height: 1, indent: 16, endIndent: 16),
-          _buildMenuListItem(icon: Icons.info_outline, title: '앱 정보', subtitle: '버전 정보 및 이용약관', onTap: () {}),
+          _buildMenuListItem(icon: Icons.info_outline, title: '앱 정보', subtitle: '버전 정보 및 이용약관', onTap: () {showChemiQToast("준비 중인 서비스입니다.", type: ToastType.success);}),
         ],
       ),
     );

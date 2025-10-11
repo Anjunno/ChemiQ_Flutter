@@ -5,6 +5,7 @@ import 'package:chemiq/core/dio/dio_client.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/logger.dart';
 import '../models/PresignedUrl_response.dart';
 import '../models/home_summary_dto.dart';
 import '../models/myPage_response.dart';
@@ -22,9 +23,10 @@ class MemberRepository {
   Future<MyPageResponse> getMyPageInfo() async {
     try {
       final response = await _dioClient.dio.get('/members/me/info');
+      logInfo('마이페이지 정보 조회 성공');
       return MyPageResponse.fromJson(response.data);
     } catch (e) {
-      print('마이페이지 정보 조회 실패: $e');
+      logError('마이페이지 정보 조회 실패: $e');
       throw '정보를 불러오는 데 실패했어요. 잠시 후 다시 시도해주세요.';
     }
   }
@@ -33,9 +35,10 @@ class MemberRepository {
   Future<HomeSummaryDto> getHomeSummary() async {
     try {
       final response = await _dioClient.dio.get('/home-summary');
+      logInfo('홈 요약 정보 조회 성공');
       return HomeSummaryDto.fromJson(response.data);
     } catch (e) {
-      print('홈 요약 정보 조회 실패: $e');
+      logError('홈 요약 정보 조회 실패: $e');
       throw '홈 화면 정보를 불러오는 데 실패했어요.';
     }
   }
@@ -47,32 +50,46 @@ class MemberRepository {
       '/members/me/profile-image/presigned-url',
       data: requestDto.toJson(),
     );
+    logInfo('프리사인드 URL 요청 성공: $filename');
     return PresignedUrlResponse.fromJson(response.data);
   }
 
   /// (외부) S3에 실제 이미지 파일 업로드
   Future<void> uploadImageToS3(String presignedUrl, Uint8List imageData) async {
-    final s3Dio = Dio();
-    await s3Dio.put(
-      presignedUrl,
-      data: Stream.fromIterable(imageData.map((e) => [e])),
-      options: Options(
-        headers: {
-          Headers.contentLengthHeader: imageData.length,
-          'Content-Type': 'image/jpeg',
-        },
-      ),
-    );
+    try {
+      final s3Dio = Dio();
+      await s3Dio.put(
+        presignedUrl,
+        data: Stream.fromIterable(imageData.map((e) => [e])),
+        options: Options(
+          headers: {
+            Headers.contentLengthHeader: imageData.length,
+            'Content-Type': 'image/jpeg',
+          },
+        ),
+      );
+      logInfo('S3 이미지 업로드 성공');
+    } catch (e) {
+      logError('S3 이미지 업로드 실패: $e');
+      rethrow;
+    }
   }
 
   /// 2단계: 프로필 사진 업로드 완료 보고
   Future<void> updateProfileImage({required String fileKey}) async {
-    final requestDto = ProfileImageUpdateRequest(fileKey: fileKey);
-    await _dioClient.dio.post(
-      '/members/me/profile-image',
-      data: requestDto.toJson(),
-    );
+    try {
+      final requestDto = ProfileImageUpdateRequest(fileKey: fileKey);
+      await _dioClient.dio.post(
+        '/members/me/profile-image',
+        data: requestDto.toJson(),
+      );
+      logInfo('프로필 사진 업데이트 성공: $fileKey');
+    } catch (e) {
+      logError('프로필 사진 업데이트 실패: $e');
+      throw '프로필 사진 업데이트에 실패했어요.';
+    }
   }
+
   /// 닉네임 변경을 요청합니다.
   Future<void> changeNickname({required String nickname}) async {
     try {
@@ -81,11 +98,16 @@ class MemberRepository {
         '/members/me/nickname',
         data: requestDto.toJson(),
       );
+      logInfo('닉네임 변경 성공: $nickname');
     } on DioException catch (e) {
       if (e.response?.statusCode == 400) {
         throw '닉네임 규칙(2~6자)을 확인해주세요.';
       }
+      logError('닉네임 변경 실패: $e');
       throw '닉네임 변경에 실패했어요.';
+    } catch (e) {
+      logError('닉네임 변경 중 알 수 없는 에러: $e');
+      rethrow;
     }
   }
 
@@ -103,6 +125,7 @@ class MemberRepository {
         '/members/me/password',
         data: requestDto.toJson(),
       );
+      logInfo('비밀번호 변경 성공');
     } on DioException catch (e) {
       if (e.response?.statusCode == 400) {
         final message = e.response?.data['message'] ?? '요청이 잘못되었습니다.';
@@ -111,11 +134,13 @@ class MemberRepository {
         }
         throw '새 비밀번호 규칙을 확인해주세요.';
       }
+      logError('비밀번호 변경 실패: $e');
       throw '비밀번호 변경에 실패했어요.';
+    } catch (e) {
+      logError('비밀번호 변경 중 알 수 없는 에러: $e');
+      rethrow;
     }
   }
-// TODO: 여기에 닉네임 변경, 비밀번호 변경, 프로필 사진 업로드 등의 메서드를 추가합니다.
-
 }
 
 // MemberRepository의 인스턴스를 제공하는 Provider입니다.

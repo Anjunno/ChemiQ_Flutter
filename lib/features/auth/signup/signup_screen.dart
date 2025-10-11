@@ -164,9 +164,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       children: [
         const SizedBox(height: 16),
         Image.asset(
-          'assets/images/cr.png',
+          'assets/images/chemiQQ_logo_clear.png',
           height: 50,
-          color: Theme.of(context).colorScheme.primary,
+          // color: Theme.of(context).colorScheme.primary,
         ),
         const SizedBox(height: 12),
         Text(

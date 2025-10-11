@@ -53,41 +53,67 @@
 // }
 //
 
+import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/date_symbol_data_local.dart';
+
 import 'styles/app_theme.dart';
 import 'routes/app_router.dart';
 import 'core/di/service_locator.dart';
+import 'core/utils/logger.dart'; //
 
-// ★★★★★ 1. Navigator를 위한 GlobalKey를 생성합니다. ★★★★★
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ dotenv 로딩
   await dotenv.load(fileName: ".env");
 
+  // ✅ 날짜 초기화
   await initializeDateFormatting();
+
+  // ✅ Riverpod ProviderContainer 생성
   final container = ProviderContainer();
+
+  // ✅ 서비스 로케이터 초기화
   setupServiceLocator(container);
 
+  // ✅ Flutter 프레임워크 에러 처리
+  FlutterError.onError = (details) {
+    if (kReleaseMode) {
+      // 배포 모드에서는 crash reporting 연동 가능
+      logError('FlutterError: ${details.exceptionAsString()}');
+    } else {
+      // 개발 모드에서는 콘솔 출력
+      FlutterError.dumpErrorToConsole(details);
+    }
+  };
 
-
-  runApp(
-    UncontrolledProviderScope(
-      container: container,
-      child: const MyApp(),
-    ),
+  // ✅ runZonedGuarded로 비동기 에러 처리
+  runZonedGuarded(
+        () {
+      logInfo('앱 시작!');
+      runApp(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MyApp(),
+        ),
+      );
+    },
+        (error, stackTrace) {
+      logError('Uncaught Dart Error: $error\n$stackTrace');
+    },
   );
 }
 
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
-
-
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -102,7 +128,6 @@ class MyApp extends ConsumerWidget {
           title: 'ChemiQ',
           theme: AppTheme.lightTheme,
           routerConfig: router,
-          // ★★★★★ 2. MaterialApp.router에 key를 할당합니다. ★★★★★
           key: navigatorKey,
           debugShowCheckedModeBanner: false,
         );

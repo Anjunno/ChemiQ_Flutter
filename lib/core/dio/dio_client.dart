@@ -231,6 +231,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:chemiq/main.dart';
 
+import '../utils/logger.dart';
+
 class DioClient {
   final Dio dio;
   late final Dio _tokenDio;
@@ -239,7 +241,7 @@ class DioClient {
 
   bool _isForceLogout = false;
 
-  // ★★★ 강화된 동시성 제어를 위한 변수들 ★★★
+  // 강화된 동시성 제어
   Future<String?>? _refreshTokenFuture;
   final List<Completer<String?>> _waitingCompleters = [];
 
@@ -256,46 +258,59 @@ class DioClient {
 
     _tokenDio = Dio(BaseOptions(baseUrl: dio.options.baseUrl));
 
-    // ★★★ QueuedInterceptorsWrapper 대신 일반 Interceptors 사용 ★★★
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          print('➡️ [REQ] ${options.method} ${options.uri}');
+          logInfo('➡️ [REQ] ${options.method} ${options.uri}');
+
           if (_isForceLogout) {
-            return handler.reject(DioException(requestOptions: options, message: '로그아웃이 진행 중이라 요청을 취소합니다.'));
+            return handler.reject(
+              DioException(
+                requestOptions: options,
+                message: '로그아웃이 진행 중이라 요청을 취소합니다.',
+              ),
+            );
           }
 
           final connectivityResult = await Connectivity().checkConnectivity();
           if (connectivityResult == ConnectivityResult.none) {
-            return handler.reject(DioException(requestOptions: options, message: '인터넷 연결을 확인해주세요.'));
+            return handler.reject(
+              DioException(
+                requestOptions: options,
+                message: '인터넷 연결을 확인해주세요.',
+              ),
+            );
           }
 
-          if (!options.path.contains('/login') && !options.path.contains('/signup') && !options.path.contains('/reissue')) {
+          if (!options.path.contains('/login') &&
+              !options.path.contains('/signup') &&
+              !options.path.contains('/reissue')) {
             final accessToken = await storage.read(key: 'accessToken');
             if (accessToken != null) {
               options.headers['Authorization'] = 'Bearer $accessToken';
             }
           }
+
           return handler.next(options);
         },
         onResponse: (response, handler) {
-          print('⬅️ [RES] ${response.statusCode} | ${response.requestOptions.method} ${response.requestOptions.uri}');
+          logInfo('⬅️ [RES] ${response.statusCode} | ${response.requestOptions.method} ${response.requestOptions.uri}');
           return handler.next(response);
         },
         onError: (DioException e, handler) async {
-          print('💀 [ERR] ${e.response?.statusCode} | ${e.requestOptions.method} ${e.requestOptions.uri}');
+          logError('💀 [ERR] ${e.response?.statusCode} | ${e.requestOptions.method} ${e.requestOptions.uri}');
 
           if (e.response?.statusCode == 401) {
-            if (e.requestOptions.path.contains('/reissue') || e.requestOptions.extra['isLogoutRequest'] == true) {
+            if (e.requestOptions.path.contains('/reissue') ||
+                e.requestOptions.extra['isLogoutRequest'] == true) {
               return handler.next(e);
             }
 
             try {
-              // ★★★ 핵심: 모든 401 에러는 이 하나의 메소드로 처리 ★★★
               final newAccessToken = await _getValidAccessTokenSynchronized();
 
               if (newAccessToken != null) {
-                print('--- 새로운 토큰으로 재요청: ${e.requestOptions.path} ---');
+                logDebug('--- 새로운 토큰으로 재요청: ${e.requestOptions.path} ---');
                 e.requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
                 final response = await _tokenDio.fetch(e.requestOptions);
                 return handler.resolve(response);
@@ -303,44 +318,40 @@ class DioClient {
                 throw Exception('토큰 재발급 실패');
               }
             } catch (refreshError) {
-              print('--- 토큰 재발급 최종 실패: $refreshError ---');
+              logError('--- 토큰 재발급 최종 실패: $refreshError ---');
               await _handleForceLogout();
-              return handler.reject(DioException(
+              return handler.reject(
+                DioException(
                   requestOptions: e.requestOptions,
-                  error: TokenExpiredException('Token refresh failed: $refreshError')
-              ));
+                  error: TokenExpiredException('Token refresh failed: $refreshError'),
+                ),
+              );
             }
           }
+
           return handler.next(e);
         },
       ),
     );
   }
 
-  // ★★★ 동기화된 토큰 재발급 메소드 ★★★
+  // 동기화된 토큰 재발급
   Future<String?> _getValidAccessTokenSynchronized() async {
-    // 이미 재발급이 진행 중인 경우
     if (_refreshTokenFuture != null) {
-      print('--- 진행 중인 토큰 재발급을 대기합니다 (대기자 수: ${_waitingCompleters.length}) ---');
-
-      // 현재 요청을 대기열에 추가
+      logDebug('--- 진행 중인 토큰 재발급을 대기합니다 (대기자 수: ${_waitingCompleters.length}) ---');
       final completer = Completer<String?>();
       _waitingCompleters.add(completer);
-
-      // 결과 반환
       return await completer.future;
     }
 
-    // 첫 번째 요청이 토큰 재발급을 시작
-    print('--- 토큰 재발급을 시작합니다 ---');
+    logDebug('--- 토큰 재발급을 시작합니다 ---');
     _refreshTokenFuture = _performTokenRefreshInternal();
 
     String? result;
     try {
       result = await _refreshTokenFuture!;
 
-      // 대기 중인 모든 요청에게 결과 전달
-      print('--- 대기 중인 ${_waitingCompleters.length}개 요청에 결과 전달 ---');
+      logDebug('--- 대기 중인 ${_waitingCompleters.length}개 요청에 결과 전달 ---');
       for (final completer in _waitingCompleters) {
         if (!completer.isCompleted) {
           completer.complete(result);
@@ -349,7 +360,6 @@ class DioClient {
 
       return result;
     } catch (error) {
-      // 대기 중인 모든 요청에게 에러 전달
       for (final completer in _waitingCompleters) {
         if (!completer.isCompleted) {
           completer.completeError(error);
@@ -357,22 +367,19 @@ class DioClient {
       }
       rethrow;
     } finally {
-      // 상태 초기화
       _waitingCompleters.clear();
       _refreshTokenFuture = null;
-      print('--- 토큰 재발급 완료, 상태 초기화 ---');
+      logDebug('--- 토큰 재발급 완료, 상태 초기화 ---');
     }
   }
 
-  // ★★★ 실제 토큰 재발급 로직 ★★★
+  // 실제 토큰 재발급
   Future<String?> _performTokenRefreshInternal() async {
     try {
       final refreshToken = await storage.read(key: 'refreshToken');
-      if (refreshToken == null) {
-        throw Exception('No refresh token available');
-      }
+      if (refreshToken == null) throw Exception('No refresh token available');
 
-      print('--- 서버에 토큰 재발급 요청 ---');
+      logDebug('--- 서버에 토큰 재발급 요청 ---');
       final requestDto = ReissueRequest(refreshToken: refreshToken);
 
       final reissueResponse = await _tokenDio.post(
@@ -384,24 +391,23 @@ class DioClient {
         ),
       );
 
-      final newAccessToken = reissueResponse.headers.value('Authorization')?.replaceFirst('Bearer ', '');
+      final newAccessToken =
+      reissueResponse.headers.value('Authorization')?.replaceFirst('Bearer ', '');
       final newRefreshToken = ReissueResponse.fromJson(reissueResponse.data).newRefreshToken;
 
       if (newAccessToken != null && newRefreshToken.isNotEmpty) {
-        // 두 토큰을 동시에 저장
         await Future.wait([
           storage.write(key: 'accessToken', value: newAccessToken),
           storage.write(key: 'refreshToken', value: newRefreshToken),
         ]);
 
-        print('--- 토큰 재발급 성공 ---');
+        logInfo('--- 토큰 재발급 성공 ---');
         return newAccessToken;
       }
 
       throw Exception('Invalid tokens received from server');
-
     } catch (error) {
-      print('--- 토큰 재발급 실패: $error ---');
+      logError('--- 토큰 재발급 실패: $error ---');
       return null;
     }
   }
@@ -415,7 +421,7 @@ class DioClient {
       final authNotifier = _container.read(authStateProvider.notifier);
       if (authNotifier.mounted) await authNotifier.logout();
     } catch (e) {
-      print('로그아웃 처리 중 에러: $e');
+      logError('로그아웃 처리 중 에러: $e');
     } finally {
       _isForceLogout = false;
     }

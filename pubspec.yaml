@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.0+4
 
 environment:
   sdk: ^3.7.2
@@ -53,31 +53,36 @@ dependencies:
   dotted_border: ^2.1.0
   timeago: ^3.6.1
   photo_view: ^0.15.0
+  logger: ^2.6.1
 #  image_gallery_saver: ^2.0.3
   permission_handler: ^11.3.1
   gal: ^2.3.2
+  change_app_package_name: ^1.5.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^5.0.0
 
 flutter_native_splash:
   # 스플래시 스크린의 배경색입니다. 우리 앱의 배경색과 맞춥니다.
-  color: "#FDF8F5"
+  color: "#F7F4EA"
 
   # 중앙에 표시될 로고 이미지 경로입니다.
   # assets/images 폴더 안에 chemiq_logo.png 파일을 준비해주세요.
-  image: assets/images/chemiq_logo-text.png
+  image: assets/images/chemiQQ_noback_splash.png
 
   # Android 12 이상을 위한 설정입니다.
   android_12:
-    color: "#FDF8F5"
-    image: assets/images/chemiq_logo-text.png
+    color: "#F7F4EA"
+    image: assets/images/chemiQQ_noback_splash.png
+#    fullscreen: true
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -152,8 +157,8 @@ flutter:
 flutter_launcher_icons:
   android: "chemiq_icon" # Android 아이콘 이름 (선택 사항)
   ios: true # iOS 아이콘 생성 여부
-  image_path: "assets/images/chemiq_main_icon.png" # 사용할 로고 이미지 경로
+  image_path: "assets/images/chemiQQ_logo.png" # 사용할 로고 이미지 경로
   min_sdk_android: 21 # Android 최소 SDK 버전 (대부분 21 이상)
   remove_alpha_ios: true # iOS 아이콘 투명 배경 제거 (false로 하면 배경색이 투명하게 유지될 수 있음)
-  adaptive_icon_background: "#FDF8F5" # Android 8.0 이상 Adaptive Icon 배경색 (Hex Code)
-  adaptive_icon_foreground: "assets/images/chemiq_logo-text.png" # Adaptive Icon 전경 이미지 (선택 사항)
+  adaptive_icon_background: "#F7F4EA" # Android 8.0 이상 Adaptive Icon 배경색 (Hex Code)
+  adaptive_icon_foreground: "assets/images/chemiQQ_logo_noback.png" # Adaptive Icon 전경 이미지 (선택 사항)
