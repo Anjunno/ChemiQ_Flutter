@@ -68,20 +68,23 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with AutomaticK
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: state.missions.length + (state.canLoadMore ? 1 : 0),
+        // itemCount: filteredMissions.length + (state.canLoadMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == state.missions.length) {
+          // if (index == filteredMissions.length) {
             return state.isLoadingMore
                 ? const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()))
                 : const SizedBox.shrink();
           }
           final mission = state.missions[index];
+          // final mission = filteredMissions[index];
           return _buildTimelineItem(mission, myPageState.value, context);
         },
       ),
     );
   }
 
-  // ✨ Shimmer Loading Widgets
+  // Shimmer Loading Widgets
   Widget _buildLoadingShimmer() {
     return Shimmer.fromColors(
       baseColor: Colors.grey.shade300,
