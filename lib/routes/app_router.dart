@@ -112,6 +112,7 @@ import '../features/mission_detail/mission_detail_screen.dart';
 import '../features/mission_submission/mission_submission_screen.dart';
 import '../features/partner_linking/partner_linking_screen.dart';
 import '../features/photo_viewer_screen.dart';
+import 'package:chemiq/features/splash/splash_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   // authState 변화를 감지
@@ -121,7 +122,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   print('🔄 Router: AuthState changed to $authState');
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/splash', // 초기 위치를 스플래시로 변경
     // refreshListenable를 사용하여 authState 변화 시 자동으로 리프레시
     refreshListenable: AuthStateRefreshListenable(ref),
     redirect: (BuildContext context, GoRouterState state) {
@@ -129,15 +130,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       print('🔄 Current AuthState: $authState');
       print('🔄 Current location: ${state.matchedLocation}');
 
-      // unknown 상태면 대기
-      if (authState == AuthState.unknown) {
-        print('🔄 AuthState is unknown, waiting...');
-        return null;
-      }
-
+      final isSplash = state.matchedLocation == '/splash';
       final loggedIn = authState == AuthState.authenticated;
       final isAuthRoute = state.matchedLocation == '/login' ||
           state.matchedLocation == '/signup';
+
+      // 1. AuthState가 unknown (로딩 중)일 때
+      if (authState == AuthState.unknown) {
+        print('🔄 AuthState is unknown. Redirecting to /splash if not already there.');
+        return isSplash ? null : '/splash'; // 이미 스플래시면 대기, 아니면 스플래시로 이동
+      }
+
+      // 2. AuthState가 확정 (authenticated or unauthenticated)된 후
+
+      // 현재 스플래시 페이지에 있으면 적절한 페이지로 리다이렉트
+      if (isSplash) {
+        print('🔄 Splash completed. Redirecting to ${loggedIn ? '/' : '/login'}');
+        return loggedIn ? '/' : '/login';
+      }
 
       // 로그아웃 상태일 때
       if (!loggedIn) {
@@ -152,7 +162,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
 
-      // 로그인 상태일 때
+      // 로그인 상태일 때 (loggedIn == true)
       if (loggedIn) {
         print('🔄 User is logged in');
         // 로그인/회원가입 페이지에 있으면 메인으로 리다이렉트
@@ -166,6 +176,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // 스플래시 라우트 추가
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
@@ -257,7 +272,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-// AuthState 변화를 감지하는 Listenable 클래스
+// AuthState 변화를 감지하는 Listenable 클래스 (변경 없음)
 class AuthStateRefreshListenable extends ChangeNotifier {
   final Ref ref;
   AuthState? _previousState;
